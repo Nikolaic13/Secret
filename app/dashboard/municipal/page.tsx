@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Sidebar } from "@/components/layout/sidebar"
+import { Header } from "@/components/layout/header"
 import {
   Heart,
   LogOut,
@@ -130,7 +132,9 @@ export default function MunicipalDashboard() {
   const [showStoreDialog, setShowStoreDialog] = useState(false)
   const [showDistributeDialog, setShowDistributeDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
+
   const [rejectionReason, setRejectionReason] = useState("")
+  const [activeTab, setActiveTab] = useState("donations")
 
   const router = useRouter()
   const supabase = createClient()
@@ -911,982 +915,996 @@ export default function MunicipalDashboard() {
     )
   }
 
+  const sidebarItems = [
+    {
+      id: "donations",
+      label: "All Donations",
+      icon: <Package className="h-4 w-4" />,
+      onClick: () => setActiveTab("donations"),
+      isActive: activeTab === "donations",
+    },
+    {
+      id: "categories",
+      label: "MCDA Distribution",
+      icon: <Target className="h-4 w-4" />,
+      onClick: () => setActiveTab("categories"),
+      isActive: activeTab === "categories",
+    },
+    {
+      id: "allocated",
+      label: "Allocated Foods",
+      icon: <CheckSquare className="h-4 w-4" />,
+      onClick: () => setActiveTab("allocated"),
+      isActive: activeTab === "allocated",
+    },
+    {
+      id: "requests",
+      label: "Barangay Requests",
+      icon: <Utensils className="h-4 w-4" />,
+      onClick: () => setActiveTab("requests"),
+      isActive: activeTab === "requests",
+    },
+  ]
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Heart className="h-8 w-8 text-green-600" />
-            <h1 className="text-2xl font-bold text-green-800">FoodShare Janiuay</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              {profile?.first_name} {profile?.last_name} - Municipal Representative
-            </span>
-            <Button variant="outline" onClick={() => fetchAllData()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      <Sidebar items={sidebarItems} />
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Action Message */}
-        {actionMessage && (
-          <Alert
-            className={`mb-6 ${actionMessage.includes("Failed") ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}
-          >
-            <Info className={`h-4 w-4 ${actionMessage.includes("Failed") ? "text-red-600" : "text-green-600"}`} />
-            <AlertDescription className={actionMessage.includes("Failed") ? "text-red-800" : "text-green-800"}>
-              {actionMessage}
-            </AlertDescription>
-          </Alert>
-        )}
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header
+          userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
+          subtitle="Municipal Representative"
+          onRefresh={fetchAllData}
+          onLogout={handleLogout}
+        />
 
-        {/* Statistics Cards */}
-        <div className="grid md:grid-cols-5 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Available</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {foodItems.filter((item) => item.status === "available").length}
-                  </p>
-                </div>
-                <Package className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
+        <main className="flex-1 overflow-y-auto p-8">
+          <div className="container mx-auto">
+            {/* Action Message */}
+            {actionMessage && (
+              <Alert
+                className={`mb-6 ${actionMessage.includes("Failed") ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}
+              >
+                <Info className={`h-4 w-4 ${actionMessage.includes("Failed") ? "text-red-600" : "text-green-600"}`} />
+                <AlertDescription className={actionMessage.includes("Failed") ? "text-red-800" : "text-green-800"}>
+                  {actionMessage}
+                </AlertDescription>
+              </Alert>
+            )}
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Claimed</p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {foodItems.filter((item) => item.storage_status === "claimed").length}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">In Storage</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {foodItems.filter((item) => item.storage_status === "in_storage").length}
-                  </p>
-                </div>
-                <Warehouse className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Allocated</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {foodItems.filter((item) => item.storage_status === "allocated").length}
-                  </p>
-                </div>
-                <Target className="h-8 w-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active Requests</p>
-                  <p className="text-2xl font-bold text-orange-600">{foodRequests.length}</p>
-                </div>
-                <Utensils className="h-8 w-8 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="donations" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="donations">All Donations</TabsTrigger>
-            <TabsTrigger value="categories">MCDA Distribution</TabsTrigger>
-            <TabsTrigger value="allocated">Allocated Foods</TabsTrigger>
-            <TabsTrigger value="requests">Barangay Requests</TabsTrigger>
-          </TabsList>
-
-          {/* All Donations Tab */}
-          <TabsContent value="donations">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-green-600" />
-                  All Donated Foods
-                </CardTitle>
-                <CardDescription>View all donated foods and manage them through claim → store workflow</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {foodItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No donated foods available</p>
-                    <p className="text-sm text-gray-400">Donated foods will appear here when posted by donors</p>
+            {/* Statistics Cards */}
+            <div className="grid md:grid-cols-5 gap-6 mb-8">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Available</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {foodItems.filter((item) => item.status === "available").length}
+                      </p>
+                    </div>
+                    <Package className="h-8 w-8 text-green-600" />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {foodItems.map((item) => (
-                      <div key={item.id} className="border rounded-lg p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-lg font-semibold">{item.title}</h3>
-                              <Badge className={getStatusColor(item.status)}>{item.status.replace("_", " ")}</Badge>
-                              <Badge className={getStorageStatusColor(item.storage_status)}>
-                                {item.storage_status.replace("_", " ")}
-                              </Badge>
-                              <Badge variant="outline">{item.category}</Badge>
-                              {item.status === "rejected" && ( // Display rejection reason if rejected
-                                <Badge variant="outline" className="bg-red-100 text-red-700">
-                                  Reason: {item.rejection_reason}
-                                </Badge>
-                              )}
-                            </div>
+                </CardContent>
+              </Card>
 
-                            {item.description && <p className="text-gray-600 mb-3">{item.description}</p>}
-
-                            {/* Item Information */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
-                              <div>
-                                <span className="font-medium">Donor:</span> {item.profiles?.first_name}{" "}
-                                {item.profiles?.last_name}
-                              </div>
-                              <div>
-                                <span className="font-medium">Quantity:</span> {item.quantity} {item.unit}
-                              </div>
-                              <div>
-                                <span className="font-medium">Expires:</span>{" "}
-                                {new Date(item.expiry_date).toLocaleDateString()}
-                              </div>
-                              <div>
-                                <span className="font-medium">Method:</span> {item.delivery_method}
-                              </div>
-                            </div>
-
-                            {/* Delivery Information */}
-                            {item.delivery_method === "pickup" && item.pickup_address && (
-                              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                                <div className="flex items-start gap-2">
-                                  <Truck className="h-4 w-4 text-blue-600 mt-0.5" />
-                                  <div className="text-sm">
-                                    <p className="font-medium text-blue-800">Pickup Information:</p>
-                                    <p className="text-blue-700">{item.pickup_address}</p>
-                                    {item.pickup_contact && (
-                                      <p className="text-blue-700 flex items-center gap-1">
-                                        <Phone className="h-3 w-3" />
-                                        {item.pickup_contact}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {item.delivery_method === "dropoff" && (
-                              <div className="mb-4 p-3 bg-green-50 rounded-lg">
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-green-600 mt-0.5" />
-                                  <div className="text-sm">
-                                    <p className="font-medium text-green-800">Drop-off Location:</p>
-                                    <p className="text-green-700">Municipal Hall, Janiuay, Iloilo, Philippines</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Storage Information */}
-                            {item.storage_location && (
-                              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                                <div className="text-sm">
-                                  <p className="font-medium text-gray-800">Storage Location:</p>
-                                  <p className="text-gray-700">{item.storage_location}</p>
-                                  {item.storage_notes && (
-                                    <p className="text-gray-600 mt-1">Notes: {item.storage_notes}</p>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Allocation Information */}
-                            {item.assigned_barangay && (
-                              <div className="mb-4 p-3 bg-purple-50 rounded-lg">
-                                <div className="text-sm">
-                                  <p className="font-medium text-purple-800">Allocated to:</p>
-                                  <p className="text-purple-700">{item.assigned_barangay}</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="ml-6 flex flex-col gap-2">
-                            {item.status === "available" && (
-                              <>
-                                <Button
-                                  onClick={() => handleClaimFood(item.id)}
-                                  disabled={loading}
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  <Package className="h-4 w-4 mr-1" />
-                                  Claim
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    setSelectedItem(item)
-                                    setShowRejectDialog(true)
-                                  }}
-                                  disabled={loading}
-                                  variant="destructive"
-                                >
-                                  <X className="h-4 w-4 mr-1" />
-                                  Reject
-                                </Button>
-                              </>
-                            )}
-
-                            {item.status === "waiting_pickup" && (
-                              <Button
-                                onClick={() => {
-                                  setSelectedItem(item)
-                                  setShowStoreDialog(true)
-                                }}
-                                className="bg-blue-600 hover:bg-blue-700"
-                              >
-                                <Warehouse className="h-4 w-4 mr-1" />
-                                Store
-                              </Button>
-                            )}
-
-                            {item.storage_status === "in_storage" && (
-                              <Badge className="bg-green-100 text-green-800">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Ready for Distribution
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Claimed</p>
+                      <p className="text-2xl font-bold text-yellow-600">
+                        {foodItems.filter((item) => item.storage_status === "claimed").length}
+                      </p>
+                    </div>
+                    <Clock className="h-8 w-8 text-yellow-600" />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
 
-          {/* MCDA Distribution Tab */}
-          <TabsContent value="categories">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-orange-600" />
-                  MCDA Demographic-Based Distribution
-                </CardTitle>
-                <CardDescription>
-                  Distribute stored food items to any of the 57 official Janiuay barangays using MCDA algorithm
-                  recommendations based on demographic vulnerability and need
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {categoryGroups.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No stored food categories available</p>
-                    <p className="text-sm text-gray-400">Store some claimed items first to enable MCDA distribution</p>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">In Storage</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {foodItems.filter((item) => item.storage_status === "in_storage").length}
+                      </p>
+                    </div>
+                    <Warehouse className="h-8 w-8 text-blue-600" />
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    {categoryGroups.map((categoryGroup) => {
-                      const mcdaRecommendations = getMCDARecommendations(
-                        categoryGroup.category,
-                        categoryGroup.requestingBarangays,
-                      )
+                </CardContent>
+              </Card>
 
-                      return (
-                        <div key={categoryGroup.category} className="border rounded-lg p-6">
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <h3 className="text-lg font-semibold flex items-center gap-2">
-                                <Utensils className="h-5 w-5 text-orange-600" />
-                                {categoryGroup.category}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {categoryGroup.items.length} items • Total: {categoryGroup.totalQuantity} units •{" "}
-                                {categoryGroup.requestingBarangays.length} requests
-                              </p>
-                            </div>
-                            <Button
-                              onClick={() => {
-                                setSelectedCategory(categoryGroup)
-                                setSelectedBarangays([])
-                                setShowDistributeDialog(true)
-                              }}
-                              disabled={loading || categoryGroup.items.length === 0}
-                              className="bg-orange-600 hover:bg-orange-700"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              MCDA Distribute
-                            </Button>
-                          </div>
-
-                          {/* Items in this category */}
-                          <div className="mb-4">
-                            <h4 className="font-medium text-gray-800 mb-2">Available Items:</h4>
-                            <div className="grid md:grid-cols-2 gap-2">
-                              {categoryGroup.items.map((item) => (
-                                <div key={item.id} className="text-sm bg-gray-50 p-3 rounded">
-                                  <div className="font-medium">{item.title}</div>
-                                  <div className="text-gray-600">
-                                    {item.quantity} {item.unit} • Donor: {item.profiles?.first_name}{" "}
-                                    {item.profiles?.last_name}
-                                  </div>
-                                  <div className="text-gray-500 text-xs">Storage: {item.storage_location}</div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {categoryGroup.requestingBarangays.length > 0 ? (
-                            <div className="grid md:grid-cols-2 gap-4">
-                              {/* Specific requests */}
-                              <div>
-                                <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
-                                  <AlertCircle className="h-4 w-4 text-red-600" />
-                                  Barangay Requests ({categoryGroup.requestingBarangays.length})
-                                </h4>
-                                <div className="space-y-2">
-                                  {categoryGroup.requestingBarangays.map((request) => (
-                                    <div key={request.id} className="bg-red-50 p-3 rounded border-l-4 border-red-400">
-                                      <div className="flex justify-between items-start">
-                                        <div>
-                                          <span className="font-medium">{request.barangay_name}</span>
-                                        </div>
-                                        <span className="text-xs text-gray-500">
-                                          {request.quantity_needed} {request.unit}
-                                        </span>
-                                      </div>
-                                      <p className="text-sm text-gray-600 mt-1">{request.reason}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* MCDA recommendations */}
-                              <div>
-                                <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
-                                  <Target className="h-4 w-4 text-blue-600" />
-                                  MCDA Recommendations
-                                </h4>
-                                <div className="space-y-2">
-                                  {mcdaRecommendations.map((rec, index) => (
-                                    <div
-                                      key={rec.barangay.name}
-                                      className="bg-blue-50 p-3 rounded border-l-4 border-blue-400"
-                                    >
-                                      <div className="flex justify-between items-center">
-                                        <span className="font-medium">
-                                          #{index + 1} {rec.barangay.name}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                          <Badge variant="outline" size="sm">
-                                            MCDA: {rec.score}%
-                                          </Badge>
-                                        </div>
-                                      </div>
-                                      <div className="text-xs text-gray-600 mt-1">
-                                        Requested: {rec.request.quantity_needed} {rec.request.unit} • Pop:{" "}
-                                        {rec.barangay.population.toLocaleString()} • Urgency:{" "}
-                                        {rec.barangay.urgency_score}
-                                        /10 • Food Security: {rec.barangay.food_security_level}/10
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="bg-yellow-50 p-4 rounded-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Info className="h-4 w-4 text-yellow-600" />
-                                <span className="font-medium text-yellow-800">No Specific Requests</span>
-                              </div>
-                              <p className="text-sm text-yellow-700">
-                                No barangays have specifically requested this food category. You can still distribute to
-                                any of the 57 official Janiuay barangays using MCDA algorithm based on demographic
-                                vulnerability and general need.
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Allocated</p>
+                      <p className="text-2xl font-bold text-purple-600">
+                        {foodItems.filter((item) => item.storage_status === "allocated").length}
+                      </p>
+                    </div>
+                    <Target className="h-8 w-8 text-purple-600" />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
 
-          {/* Allocated Foods Tab */}
-          <TabsContent value="allocated">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-purple-600" />
-                  Allocated Foods
-                </CardTitle>
-                <CardDescription>
-                  View all food items that have been allocated to barangays through MCDA distribution
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {(() => {
-                  const allocatedItems = foodItems.filter((item) => item.storage_status === "allocated")
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Active Requests</p>
+                      <p className="text-2xl font-bold text-orange-600">{foodRequests.length}</p>
+                    </div>
+                    <Utensils className="h-8 w-8 text-orange-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                  if (allocatedItems.length === 0) {
-                    return (
+            {/* Main Content Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+
+              {/* All Donations Tab */}
+              <TabsContent value="donations">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-green-600" />
+                      All Donated Foods
+                    </CardTitle>
+                    <CardDescription>View all donated foods and manage them through claim → store workflow</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {foodItems.length === 0 ? (
                       <div className="text-center py-8">
-                        <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">No allocated foods</p>
-                        <p className="text-sm text-gray-400">
-                          Food items will appear here after being distributed through MCDA algorithm
-                        </p>
+                        <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">No donated foods available</p>
+                        <p className="text-sm text-gray-400">Donated foods will appear here when posted by donors</p>
                       </div>
-                    )
-                  }
-
-                  // Group allocated items by barangay
-                  const itemsByBarangay = allocatedItems.reduce(
-                    (acc, item) => {
-                      const barangay = item.assigned_barangay
-                      if (!acc[barangay]) {
-                        acc[barangay] = []
-                      }
-                      acc[barangay].push(item)
-                      return acc
-                    },
-                    {} as Record<string, FoodItem[]>,
-                  )
-
-                  return (
-                    <div className="space-y-6">
-                      {Object.entries(itemsByBarangay)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([barangay, items]) => (
-                          <div key={barangay} className="border rounded-lg p-6">
-                            <div className="flex items-center justify-between mb-4">
-                              <div>
-                                <h3 className="text-lg font-semibold flex items-center gap-2">
-                                  <MapPin className="h-5 w-5 text-purple-600" />
-                                  {barangay}
-                                  {barangay.includes("(Poblacion)") && (
-                                    <Badge variant="outline" size="sm" className="bg-blue-100 text-blue-700">
-                                      Poblacion
+                    ) : (
+                      <div className="space-y-4">
+                        {foodItems.map((item) => (
+                          <div key={item.id} className="border rounded-lg p-6">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="text-lg font-semibold">{item.title}</h3>
+                                  <Badge className={getStatusColor(item.status)}>{item.status.replace("_", " ")}</Badge>
+                                  <Badge className={getStorageStatusColor(item.storage_status)}>
+                                    {item.storage_status.replace("_", " ")}
+                                  </Badge>
+                                  <Badge variant="outline">{item.category}</Badge>
+                                  {item.status === "rejected" && ( // Display rejection reason if rejected
+                                    <Badge variant="outline" className="bg-red-100 text-red-700">
+                                      Reason: {item.rejection_reason}
                                     </Badge>
                                   )}
-                                </h3>
-                                <p className="text-sm text-gray-600">
-                                  {items.length} items allocated • Total quantity:{" "}
-                                  {items.reduce((sum, item) => sum + item.quantity, 0)} units
-                                </p>
-                              </div>
-                              <Badge className="bg-purple-100 text-purple-800">
-                                <Target className="h-3 w-3 mr-1" />
-                                Allocated
-                              </Badge>
-                            </div>
+                                </div>
 
-                            <div className="space-y-3">
-                              {items.map((item) => (
-                                <div key={item.id} className="bg-gray-50 rounded-lg p-4">
-                                  <div className="flex justify-between items-start mb-2">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-medium">{item.title}</h4>
-                                        <Badge variant="outline">{item.category}</Badge>
-                                        <Badge className={getStatusColor(item.status)}>
-                                          {item.status.replace("_", " ")}
-                                        </Badge>
-                                      </div>
-                                      {item.description && (
-                                        <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-                                      )}
-                                    </div>
-                                    <div className="text-right text-sm text-gray-600">
-                                      <div className="font-medium">
-                                        {item.quantity} {item.unit}
-                                      </div>
-                                      <div className="text-xs">
-                                        Expires: {new Date(item.expiry_date).toLocaleDateString()}
-                                      </div>
-                                    </div>
+                                {item.description && <p className="text-gray-600 mb-3">{item.description}</p>}
+
+                                {/* Item Information */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
+                                  <div>
+                                    <span className="font-medium">Donor:</span> {item.profiles?.first_name}{" "}
+                                    {item.profiles?.last_name}
                                   </div>
-
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-600">
-                                    <div>
-                                      <span className="font-medium">Donor:</span> {item.profiles?.first_name}{" "}
-                                      {item.profiles?.last_name}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Storage:</span> {item.storage_location || "N/A"}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Allocated:</span>{" "}
-                                      {item.claimed_at ? new Date(item.claimed_at).toLocaleDateString() : "N/A"}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Status:</span>{" "}
-                                      {item.storage_status.replace("_", " ")}
-                                    </div>
+                                  <div>
+                                    <span className="font-medium">Quantity:</span> {item.quantity} {item.unit}
                                   </div>
+                                  <div>
+                                    <span className="font-medium">Expires:</span>{" "}
+                                    {new Date(item.expiry_date).toLocaleDateString()}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Method:</span> {item.delivery_method}
+                                  </div>
+                                </div>
 
-                                  {/* Show delivery method information */}
-                                  {item.delivery_method === "pickup" && item.pickup_address && (
-                                    <div className="mt-3 p-2 bg-blue-50 rounded text-xs">
-                                      <div className="flex items-center gap-1">
-                                        <Truck className="h-3 w-3 text-blue-600" />
-                                        <span className="font-medium text-blue-800">Original Pickup:</span>
-                                        <span className="text-blue-700">{item.pickup_address}</span>
+                                {/* Delivery Information */}
+                                {item.delivery_method === "pickup" && item.pickup_address && (
+                                  <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                                    <div className="flex items-start gap-2">
+                                      <Truck className="h-4 w-4 text-blue-600 mt-0.5" />
+                                      <div className="text-sm">
+                                        <p className="font-medium text-blue-800">Pickup Information:</p>
+                                        <p className="text-blue-700">{item.pickup_address}</p>
                                         {item.pickup_contact && (
-                                          <>
-                                            <Phone className="h-3 w-3 text-blue-600 ml-2" />
-                                            <span className="text-blue-700">{item.pickup_contact}</span>
-                                          </>
+                                          <p className="text-blue-700 flex items-center gap-1">
+                                            <Phone className="h-3 w-3" />
+                                            {item.pickup_contact}
+                                          </p>
                                         )}
                                       </div>
                                     </div>
-                                  )}
+                                  </div>
+                                )}
 
-                                  {item.delivery_method === "dropoff" && (
-                                    <div className="mt-3 p-2 bg-green-50 rounded text-xs">
-                                      <div className="flex items-center gap-1">
-                                        <MapPin className="h-3 w-3 text-green-600" />
-                                        <span className="font-medium text-green-800">Original Drop-off:</span>
-                                        <span className="text-green-700">Municipal Hall, Janiuay, Iloilo</span>
+                                {item.delivery_method === "dropoff" && (
+                                  <div className="mb-4 p-3 bg-green-50 rounded-lg">
+                                    <div className="flex items-start gap-2">
+                                      <MapPin className="h-4 w-4 text-green-600 mt-0.5" />
+                                      <div className="text-sm">
+                                        <p className="font-medium text-green-800">Drop-off Location:</p>
+                                        <p className="text-green-700">Municipal Hall, Janiuay, Iloilo, Philippines</p>
                                       </div>
                                     </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                                  </div>
+                                )}
 
-                            {/* Summary for this barangay */}
-                            <div className="mt-4 p-3 bg-purple-50 rounded-lg">
-                              <div className="text-sm">
-                                <div className="font-medium text-purple-800 mb-1">
-                                  Allocation Summary for {barangay}:
-                                </div>
-                                <div className="text-purple-700">
-                                  Categories: {[...new Set(items.map((item) => item.category))].join(", ")} • Total
-                                  Items: {items.length} • Total Quantity:{" "}
-                                  {items.reduce((sum, item) => sum + item.quantity, 0)} units
-                                </div>
-                                <div className="text-xs text-purple-600 mt-1">
-                                  Allocated through MCDA demographic-based distribution algorithm
-                                </div>
+                                {/* Storage Information */}
+                                {item.storage_location && (
+                                  <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                                    <div className="text-sm">
+                                      <p className="font-medium text-gray-800">Storage Location:</p>
+                                      <p className="text-gray-700">{item.storage_location}</p>
+                                      {item.storage_notes && (
+                                        <p className="text-gray-600 mt-1">Notes: {item.storage_notes}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Allocation Information */}
+                                {item.assigned_barangay && (
+                                  <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+                                    <div className="text-sm">
+                                      <p className="font-medium text-purple-800">Allocated to:</p>
+                                      <p className="text-purple-700">{item.assigned_barangay}</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="ml-6 flex flex-col gap-2">
+                                {item.status === "available" && (
+                                  <>
+                                    <Button
+                                      onClick={() => handleClaimFood(item.id)}
+                                      disabled={loading}
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      <Package className="h-4 w-4 mr-1" />
+                                      Claim
+                                    </Button>
+                                    <Button
+                                      onClick={() => {
+                                        setSelectedItem(item)
+                                        setShowRejectDialog(true)
+                                      }}
+                                      disabled={loading}
+                                      variant="destructive"
+                                    >
+                                      <X className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+
+                                {item.status === "waiting_pickup" && (
+                                  <Button
+                                    onClick={() => {
+                                      setSelectedItem(item)
+                                      setShowStoreDialog(true)
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                  >
+                                    <Warehouse className="h-4 w-4 mr-1" />
+                                    Store
+                                  </Button>
+                                )}
+
+                                {item.storage_status === "in_storage" && (
+                                  <Badge className="bg-green-100 text-green-800">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Ready for Distribution
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </div>
                         ))}
-
-                      {/* Overall summary */}
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-blue-900 mb-2">Overall Allocation Summary</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="font-medium text-blue-800">Total Barangays</div>
-                            <div className="text-blue-700">{Object.keys(itemsByBarangay).length}</div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-blue-800">Total Items</div>
-                            <div className="text-blue-700">{allocatedItems.length}</div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-blue-800">Total Quantity</div>
-                            <div className="text-blue-700">
-                              {allocatedItems.reduce((sum, item) => sum + item.quantity, 0)} units
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-blue-800">Categories</div>
-                            <div className="text-blue-700">
-                              {[...new Set(allocatedItems.map((item) => item.category))].length}
-                            </div>
-                          </div>
-                        </div>
                       </div>
-                    </div>
-                  )
-                })()}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-          {/* Barangay Requests Tab */}
-          <TabsContent value="requests">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
-                  Barangay Food Requests
-                </CardTitle>
-                <CardDescription>
-                  View all pending food requests from official Janiuay barangay representatives (no manual priority
-                  levels)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {foodRequests.length === 0 ? (
-                  <div className="text-center py-8">
-                    <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No pending food requests</p>
-                    <p className="text-sm text-gray-400">Barangay requests will appear here when submitted</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {foodRequests.map((request) => (
-                      <div key={request.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{request.barangay_name}</h3>
-                            <Badge variant="outline">{request.food_category}</Badge>
-                          </div>
-                          <span className="text-xs text-gray-500 flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(request.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
-                          <div>
-                            <span className="font-medium">Quantity Needed:</span> {request.quantity_needed}{" "}
-                            {request.unit}
-                          </div>
-                          <div>
-                            <span className="font-medium">Status:</span> {request.status}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 text-sm">
-                          <div>
-                            <span className="font-medium text-gray-800">Reason:</span>
-                            <p className="text-gray-600 mt-1">{request.reason}</p>
-                          </div>
-                          {request.special_requirements && (
-                            <div>
-                              <span className="font-medium text-gray-800">Special Requirements:</span>
-                              <p className="text-gray-600 mt-1">{request.special_requirements}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* MCDA Information */}
-                        <div className="mt-3 p-2 bg-green-50 rounded">
-                          <div className="text-xs text-green-800">
-                            <strong>MCDA Recommendations:</strong> This request will be used to generate MCDA
-                            recommendations based on demographic vulnerability, urgency score, food security level, and
-                            distance. You have full control over final distribution decisions.
-                          </div>
-                        </div>
+              {/* MCDA Distribution Tab */}
+              <TabsContent value="categories">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-orange-600" />
+                      MCDA Demographic-Based Distribution
+                    </CardTitle>
+                    <CardDescription>
+                      Distribute stored food items to any of the 57 official Janiuay barangays using MCDA algorithm
+                      recommendations based on demographic vulnerability and need
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {categoryGroups.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">No stored food categories available</p>
+                        <p className="text-sm text-gray-400">Store some claimed items first to enable MCDA distribution</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Store Food Dialog */}
-        <Dialog open={showStoreDialog} onOpenChange={setShowStoreDialog}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Store Food Item</DialogTitle>
-              <DialogDescription>Record storage details for {selectedItem?.title}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="storage_location">Storage Location</Label>
-                <Select onValueChange={setStorageLocation} value={storageLocation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select storage location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {storageLocations.map((location) => (
-                      <SelectItem key={location} value={location}>
-                        {location}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="storage_notes">Storage Notes</Label>
-                <Textarea
-                  id="storage_notes"
-                  placeholder="Any special storage requirements or notes"
-                  value={storageNotes}
-                  onChange={(e) => setStorageNotes(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowStoreDialog(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleStoreFood}
-                  disabled={!storageLocation || loading}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {loading ? "Storing..." : "Store Item"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Distribute Category Dialog */}
-        <Dialog open={showDistributeDialog} onOpenChange={setShowDistributeDialog}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>MCDA Distribution - {selectedCategory?.category}</DialogTitle>
-              <DialogDescription>
-                Select from the 57 official Janiuay barangays to distribute to. MCDA provides recommendations, but you
-                have full control over the final selection.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              {/* Quick selection buttons */}
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (selectedCategory?.requestingBarangays.length > 0) {
-                      const requestingBarangayNames = selectedCategory.requestingBarangays.map(
-                        (req) => req.barangay_name,
-                      )
-                      setSelectedBarangays(requestingBarangayNames)
-                    }
-                  }}
-                  disabled={!selectedCategory?.requestingBarangays.length}
-                >
-                  <CheckSquare className="h-3 w-3 mr-1" />
-                  Select Requesting ({selectedCategory?.requestingBarangays.length || 0})
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setSelectedBarangays(JANIUAY_BARANGAYS)}>
-                  <CheckSquare className="h-3 w-3 mr-1" />
-                  Select All 57 Barangays
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setSelectedBarangays([])}>
-                  <Square className="h-3 w-3 mr-1" />
-                  Clear Selection
-                </Button>
-              </div>
-
-              {/* MCDA-ranked barangays */}
-              <div>
-                <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
-                  <Target className="h-4 w-4 text-blue-600" />
-                  All 57 Janiuay Barangays (MCDA Recommendations)
-                </h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  MCDA scores are recommendations based on demographic vulnerability. You can select any barangays for
-                  distribution.{" "}
-                  {barangayData.length > 0
-                    ? "Using database demographic data."
-                    : "Using default demographic estimates."}
-                </p>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {selectedCategory &&
-                    (() => {
-                      // Get all barangays with their data (database or default)
-                      const allBarangaysWithData = JANIUAY_BARANGAYS.map((name) => {
-                        const dbBarangay = barangayData.find((b) => b.name === name)
-                        return dbBarangay || getDefaultBarangayData(name)
-                      })
-
-                      return allBarangaysWithData
-                        .map((barangay) => {
-                          // Create a mock request for MCDA calculation
-                          const mockRequest = {
-                            id: `mock-${barangay.name}`,
-                            barangay_name: barangay.name,
-                            food_category: selectedCategory?.category || "",
-                            quantity_needed: 10,
-                            unit: "kg",
-                            reason: "General distribution",
-                            special_requirements: "",
-                            status: "pending",
-                            created_at: new Date().toISOString(),
-                          }
-                          const score = calculateMCDAScore(barangay, mockRequest)
-                          const hasRequest = selectedCategory.requestingBarangays.some(
-                            (req) => req.barangay_name === barangay.name,
+                    ) : (
+                      <div className="space-y-6">
+                        {categoryGroups.map((categoryGroup) => {
+                          const mcdaRecommendations = getMCDARecommendations(
+                            categoryGroup.category,
+                            categoryGroup.requestingBarangays,
                           )
-                          return { barangay, score, mockRequest, hasRequest }
-                        })
-                        .sort((a, b) => b.score - a.score)
-                        .map((item, index) => (
-                          <div
-                            key={item.barangay.name}
-                            className={`flex items-center space-x-2 p-2 rounded border ${
-                              item.hasRequest ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"
-                            }`}
-                          >
-                            <Checkbox
-                              id={item.barangay.name}
-                              checked={selectedBarangays.includes(item.barangay.name)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedBarangays([...selectedBarangays, item.barangay.name])
-                                } else {
-                                  setSelectedBarangays(selectedBarangays.filter((name) => name !== item.barangay.name))
-                                }
-                              }}
-                            />
-                            <label htmlFor={item.barangay.name} className="flex-1 text-sm cursor-pointer">
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium flex items-center gap-2">
-                                  #{index + 1} {item.barangay.name}
-                                  {item.hasRequest && (
-                                    <Badge variant="outline" size="sm" className="bg-red-100 text-red-700">
-                                      Requested
-                                    </Badge>
-                                  )}
-                                  {item.barangay.name.includes("(Poblacion)") && (
-                                    <Badge variant="outline" size="sm" className="bg-blue-100 text-blue-700">
-                                      Poblacion
-                                    </Badge>
-                                  )}
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  <Badge variant="outline" size="sm">
-                                    MCDA: {item.score}%
-                                  </Badge>
+
+                          return (
+                            <div key={categoryGroup.category} className="border rounded-lg p-6">
+                              <div className="flex justify-between items-start mb-4">
+                                <div>
+                                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                                    <Utensils className="h-5 w-5 text-orange-600" />
+                                    {categoryGroup.category}
+                                  </h3>
+                                  <p className="text-sm text-gray-600">
+                                    {categoryGroup.items.length} items • Total: {categoryGroup.totalQuantity} units •{" "}
+                                    {categoryGroup.requestingBarangays.length} requests
+                                  </p>
+                                </div>
+                                <Button
+                                  onClick={() => {
+                                    setSelectedCategory(categoryGroup)
+                                    setSelectedBarangays([])
+                                    setShowDistributeDialog(true)
+                                  }}
+                                  disabled={loading || categoryGroup.items.length === 0}
+                                  className="bg-orange-600 hover:bg-orange-700"
+                                >
+                                  <Send className="h-4 w-4 mr-2" />
+                                  MCDA Distribute
+                                </Button>
+                              </div>
+
+                              {/* Items in this category */}
+                              <div className="mb-4">
+                                <h4 className="font-medium text-gray-800 mb-2">Available Items:</h4>
+                                <div className="grid md:grid-cols-2 gap-2">
+                                  {categoryGroup.items.map((item) => (
+                                    <div key={item.id} className="text-sm bg-gray-50 p-3 rounded">
+                                      <div className="font-medium">{item.title}</div>
+                                      <div className="text-gray-600">
+                                        {item.quantity} {item.unit} • Donor: {item.profiles?.first_name}{" "}
+                                        {item.profiles?.last_name}
+                                      </div>
+                                      <div className="text-gray-500 text-xs">Storage: {item.storage_location}</div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                              <div className="text-xs text-gray-600">
-                                Pop: {item.barangay.population.toLocaleString()} • Urgency:{" "}
-                                {item.barangay.urgency_score}
-                                /10 • Food Security: {item.barangay.food_security_level}/10 • Distance:{" "}
-                                {item.barangay.distance_km}km
-                              </div>
-                            </label>
-                          </div>
-                        ))
-                    })()}
-                </div>
-              </div>
 
-              {/* Distribution summary */}
-              {selectedBarangays.length > 0 && selectedCategory && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Distribution Summary</h4>
-                  <p className="text-sm text-blue-800">
-                    Distributing {selectedCategory.items.length} {selectedCategory.category} items to{" "}
-                    {selectedBarangays.length} selected barangays based on MCDA scores and your selection.
-                  </p>
-                  <p className="text-sm text-blue-700">
-                    Items will be allocated proportionally based on MCDA scores of selected barangays.
-                  </p>
-                  <div className="text-xs text-blue-600 mt-2">
-                    Selected ({selectedBarangays.length}): {selectedBarangays.slice(0, 5).join(", ")}
-                    {selectedBarangays.length > 5 && ` and ${selectedBarangays.length - 5} more...`}
+                              {categoryGroup.requestingBarangays.length > 0 ? (
+                                <div className="grid md:grid-cols-2 gap-4">
+                                  {/* Specific requests */}
+                                  <div>
+                                    <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                                      <AlertCircle className="h-4 w-4 text-red-600" />
+                                      Barangay Requests ({categoryGroup.requestingBarangays.length})
+                                    </h4>
+                                    <div className="space-y-2">
+                                      {categoryGroup.requestingBarangays.map((request) => (
+                                        <div key={request.id} className="bg-red-50 p-3 rounded border-l-4 border-red-400">
+                                          <div className="flex justify-between items-start">
+                                            <div>
+                                              <span className="font-medium">{request.barangay_name}</span>
+                                            </div>
+                                            <span className="text-xs text-gray-500">
+                                              {request.quantity_needed} {request.unit}
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-600 mt-1">{request.reason}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* MCDA recommendations */}
+                                  <div>
+                                    <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                                      <Target className="h-4 w-4 text-blue-600" />
+                                      MCDA Recommendations
+                                    </h4>
+                                    <div className="space-y-2">
+                                      {mcdaRecommendations.map((rec, index) => (
+                                        <div
+                                          key={rec.barangay.name}
+                                          className="bg-blue-50 p-3 rounded border-l-4 border-blue-400"
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <span className="font-medium">
+                                              #{index + 1} {rec.barangay.name}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              <Badge variant="outline">
+                                                MCDA: {rec.score}%
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                          <div className="text-xs text-gray-600 mt-1">
+                                            Requested: {rec.request.quantity_needed} {rec.request.unit} • Pop:{" "}
+                                            {rec.barangay.population.toLocaleString()} • Urgency:{" "}
+                                            {rec.barangay.urgency_score}
+                                            /10 • Food Security: {rec.barangay.food_security_level}/10
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="bg-yellow-50 p-4 rounded-lg">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Info className="h-4 w-4 text-yellow-600" />
+                                    <span className="font-medium text-yellow-800">No Specific Requests</span>
+                                  </div>
+                                  <p className="text-sm text-yellow-700">
+                                    No barangays have specifically requested this food category. You can still distribute to
+                                    any of the 57 official Janiuay barangays using MCDA algorithm based on demographic
+                                    vulnerability and general need.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Allocated Foods Tab */}
+              <TabsContent value="allocated">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-purple-600" />
+                      Allocated Foods
+                    </CardTitle>
+                    <CardDescription>
+                      View all food items that have been allocated to barangays through MCDA distribution
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const allocatedItems = foodItems.filter((item) => item.storage_status === "allocated")
+
+                      if (allocatedItems.length === 0) {
+                        return (
+                          <div className="text-center py-8">
+                            <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-500">No allocated foods</p>
+                            <p className="text-sm text-gray-400">
+                              Food items will appear here after being distributed through MCDA algorithm
+                            </p>
+                          </div>
+                        )
+                      }
+
+                      // Group allocated items by barangay
+                      const itemsByBarangay = allocatedItems.reduce(
+                        (acc, item) => {
+                          const barangay = item.assigned_barangay
+                          if (!acc[barangay]) {
+                            acc[barangay] = []
+                          }
+                          acc[barangay].push(item)
+                          return acc
+                        },
+                        {} as Record<string, FoodItem[]>,
+                      )
+
+                      return (
+                        <div className="space-y-6">
+                          {Object.entries(itemsByBarangay)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([barangay, items]) => (
+                              <div key={barangay} className="border rounded-lg p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div>
+                                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                                      <MapPin className="h-5 w-5 text-purple-600" />
+                                      {barangay}
+                                      {barangay.includes("(Poblacion)") && (
+                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
+                                          Poblacion
+                                        </Badge>
+                                      )}
+                                    </h3>
+                                    <p className="text-sm text-gray-600">
+                                      {items.length} items allocated • Total quantity:{" "}
+                                      {items.reduce((sum, item) => sum + item.quantity, 0)} units
+                                    </p>
+                                  </div>
+                                  <Badge className="bg-purple-100 text-purple-800">
+                                    <Target className="h-3 w-3 mr-1" />
+                                    Allocated
+                                  </Badge>
+                                </div>
+
+                                <div className="space-y-3">
+                                  {items.map((item) => (
+                                    <div key={item.id} className="bg-gray-50 rounded-lg p-4">
+                                      <div className="flex justify-between items-start mb-2">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h4 className="font-medium">{item.title}</h4>
+                                            <Badge variant="outline">{item.category}</Badge>
+                                            <Badge className={getStatusColor(item.status)}>
+                                              {item.status.replace("_", " ")}
+                                            </Badge>
+                                          </div>
+                                          {item.description && (
+                                            <p className="text-sm text-gray-600 mb-2">{item.description}</p>
+                                          )}
+                                        </div>
+                                        <div className="text-right text-sm text-gray-600">
+                                          <div className="font-medium">
+                                            {item.quantity} {item.unit}
+                                          </div>
+                                          <div className="text-xs">
+                                            Expires: {new Date(item.expiry_date).toLocaleDateString()}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-600">
+                                        <div>
+                                          <span className="font-medium">Donor:</span> {item.profiles?.first_name}{" "}
+                                          {item.profiles?.last_name}
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">Storage:</span> {item.storage_location || "N/A"}
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">Allocated:</span>{" "}
+                                          {item.claimed_at ? new Date(item.claimed_at).toLocaleDateString() : "N/A"}
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">Status:</span>{" "}
+                                          {item.storage_status.replace("_", " ")}
+                                        </div>
+                                      </div>
+
+                                      {/* Show delivery method information */}
+                                      {item.delivery_method === "pickup" && item.pickup_address && (
+                                        <div className="mt-3 p-2 bg-blue-50 rounded text-xs">
+                                          <div className="flex items-center gap-1">
+                                            <Truck className="h-3 w-3 text-blue-600" />
+                                            <span className="font-medium text-blue-800">Original Pickup:</span>
+                                            <span className="text-blue-700">{item.pickup_address}</span>
+                                            {item.pickup_contact && (
+                                              <>
+                                                <Phone className="h-3 w-3 text-blue-600 ml-2" />
+                                                <span className="text-blue-700">{item.pickup_contact}</span>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {item.delivery_method === "dropoff" && (
+                                        <div className="mt-3 p-2 bg-green-50 rounded text-xs">
+                                          <div className="flex items-center gap-1">
+                                            <MapPin className="h-3 w-3 text-green-600" />
+                                            <span className="font-medium text-green-800">Original Drop-off:</span>
+                                            <span className="text-green-700">Municipal Hall, Janiuay, Iloilo</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Summary for this barangay */}
+                                <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                                  <div className="text-sm">
+                                    <div className="font-medium text-purple-800 mb-1">
+                                      Allocation Summary for {barangay}:
+                                    </div>
+                                    <div className="text-purple-700">
+                                      Categories: {[...new Set(items.map((item) => item.category))].join(", ")} • Total
+                                      Items: {items.length} • Total Quantity:{" "}
+                                      {items.reduce((sum, item) => sum + item.quantity, 0)} units
+                                    </div>
+                                    <div className="text-xs text-purple-600 mt-1">
+                                      Allocated through MCDA demographic-based distribution algorithm
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                          {/* Overall summary */}
+                          <div className="bg-blue-50 p-4 rounded-lg">
+                            <h4 className="font-medium text-blue-900 mb-2">Overall Allocation Summary</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <div className="font-medium text-blue-800">Total Barangays</div>
+                                <div className="text-blue-700">{Object.keys(itemsByBarangay).length}</div>
+                              </div>
+                              <div>
+                                <div className="font-medium text-blue-800">Total Items</div>
+                                <div className="text-blue-700">{allocatedItems.length}</div>
+                              </div>
+                              <div>
+                                <div className="font-medium text-blue-800">Total Quantity</div>
+                                <div className="text-blue-700">
+                                  {allocatedItems.reduce((sum, item) => sum + item.quantity, 0)} units
+                                </div>
+                              </div>
+                              <div>
+                                <div className="font-medium text-blue-800">Categories</div>
+                                <div className="text-blue-700">
+                                  {[...new Set(allocatedItems.map((item) => item.category))].length}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Barangay Requests Tab */}
+              <TabsContent value="requests">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                      Barangay Food Requests
+                    </CardTitle>
+                    <CardDescription>
+                      View all pending food requests from official Janiuay barangay representatives (no manual priority
+                      levels)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {foodRequests.length === 0 ? (
+                      <div className="text-center py-8">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">No pending food requests</p>
+                        <p className="text-sm text-gray-400">Barangay requests will appear here when submitted</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {foodRequests.map((request) => (
+                          <div key={request.id} className="border rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold">{request.barangay_name}</h3>
+                                <Badge variant="outline">{request.food_category}</Badge>
+                              </div>
+                              <span className="text-xs text-gray-500 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                              <div>
+                                <span className="font-medium">Quantity Needed:</span> {request.quantity_needed}{" "}
+                                {request.unit}
+                              </div>
+                              <div>
+                                <span className="font-medium">Status:</span> {request.status}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-800">Reason:</span>
+                                <p className="text-gray-600 mt-1">{request.reason}</p>
+                              </div>
+                              {request.special_requirements && (
+                                <div>
+                                  <span className="font-medium text-gray-800">Special Requirements:</span>
+                                  <p className="text-gray-600 mt-1">{request.special_requirements}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* MCDA Information */}
+                            <div className="mt-3 p-2 bg-green-50 rounded">
+                              <div className="text-xs text-green-800">
+                                <strong>MCDA Recommendations:</strong> This request will be used to generate MCDA
+                                recommendations based on demographic vulnerability, urgency score, food security level, and
+                                distance. You have full control over final distribution decisions.
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            {/* Store Food Dialog */}
+            <Dialog open={showStoreDialog} onOpenChange={setShowStoreDialog}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Store Food Item</DialogTitle>
+                  <DialogDescription>Record storage details for {selectedItem?.title}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="storage_location">Storage Location</Label>
+                    <Select onValueChange={setStorageLocation} value={storageLocation}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select storage location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {storageLocations.map((location) => (
+                          <SelectItem key={location} value={location}>
+                            {location}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="storage_notes">Storage Notes</Label>
+                    <Textarea
+                      id="storage_notes"
+                      placeholder="Any special storage requirements or notes"
+                      value={storageNotes}
+                      onChange={(e) => setStorageNotes(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => setShowStoreDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleStoreFood}
+                      disabled={!storageLocation || loading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {loading ? "Storing..." : "Store Item"}
+                    </Button>
                   </div>
                 </div>
-              )}
+              </DialogContent>
+            </Dialog>
 
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowDistributeDialog(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleDistributeCategory}
-                  disabled={selectedBarangays.length === 0 || loading}
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  {loading ? "Distributing..." : `Distribute to ${selectedBarangays.length} Barangays`}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            {/* Distribute Category Dialog */}
+            <Dialog open={showDistributeDialog} onOpenChange={setShowDistributeDialog}>
+              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>MCDA Distribution - {selectedCategory?.category}</DialogTitle>
+                  <DialogDescription>
+                    Select from the 57 official Janiuay barangays to distribute to. MCDA provides recommendations, but you
+                    have full control over the final selection.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {/* Quick selection buttons */}
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if ((selectedCategory?.requestingBarangays?.length || 0) > 0) {
+                          const requestingBarangayNames = selectedCategory!.requestingBarangays.map(
+                            (req) => req.barangay_name,
+                          )
+                          setSelectedBarangays(requestingBarangayNames)
+                        }
+                      }}
+                      disabled={!(selectedCategory?.requestingBarangays?.length)}
+                    >
+                      <CheckSquare className="h-3 w-3 mr-1" />
+                      Select Requesting ({selectedCategory?.requestingBarangays.length || 0})
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedBarangays(JANIUAY_BARANGAYS)}>
+                      <CheckSquare className="h-3 w-3 mr-1" />
+                      Select All 57 Barangays
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedBarangays([])}>
+                      <Square className="h-3 w-3 mr-1" />
+                      Clear Selection
+                    </Button>
+                  </div>
 
-        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reject Food Donation</DialogTitle>
-              <DialogDescription>
-                Please provide a reason for rejecting this donation. The donor will be notified.
-              </DialogDescription>
-            </DialogHeader>
-            {selectedItem && (
-              <div className="space-y-4">
-                <div className="p-3 bg-gray-50 rounded">
-                  <p className="font-semibold">{selectedItem.title}</p>
-                  <p className="text-sm text-gray-600">
-                    Category: {selectedItem.category} | Quantity: {selectedItem.quantity} {selectedItem.unit}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Donor: {selectedItem.profiles?.first_name} {selectedItem.profiles?.last_name}
-                  </p>
+                  {/* MCDA-ranked barangays */}
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                      <Target className="h-4 w-4 text-blue-600" />
+                      All 57 Janiuay Barangays (MCDA Recommendations)
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      MCDA scores are recommendations based on demographic vulnerability. You can select any barangays for
+                      distribution.{" "}
+                      {barangayData.length > 0
+                        ? "Using database demographic data."
+                        : "Using default demographic estimates."}
+                    </p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {selectedCategory &&
+                        (() => {
+                          // Get all barangays with their data (database or default)
+                          const allBarangaysWithData = JANIUAY_BARANGAYS.map((name) => {
+                            const dbBarangay = barangayData.find((b) => b.name === name)
+                            return dbBarangay || getDefaultBarangayData(name)
+                          })
+
+                          return allBarangaysWithData
+                            .map((barangay) => {
+                              // Create a mock request for MCDA calculation
+                              const mockRequest = {
+                                id: `mock-${barangay.name}`,
+                                barangay_name: barangay.name,
+                                food_category: selectedCategory?.category || "",
+                                quantity_needed: 10,
+                                unit: "kg",
+                                reason: "General distribution",
+                                special_requirements: "",
+                                status: "pending",
+                                created_at: new Date().toISOString(),
+                              }
+                              const score = calculateMCDAScore(barangay, mockRequest)
+                              const hasRequest = selectedCategory.requestingBarangays.some(
+                                (req) => req.barangay_name === barangay.name,
+                              )
+                              return { barangay, score, mockRequest, hasRequest }
+                            })
+                            .sort((a, b) => b.score - a.score)
+                            .map((item, index) => (
+                              <div
+                                key={item.barangay.name}
+                                className={`flex items-center space-x-2 p-2 rounded border ${item.hasRequest ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"
+                                  }`}
+                              >
+                                <Checkbox
+                                  id={item.barangay.name}
+                                  checked={selectedBarangays.includes(item.barangay.name)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedBarangays([...selectedBarangays, item.barangay.name])
+                                    } else {
+                                      setSelectedBarangays(selectedBarangays.filter((name) => name !== item.barangay.name))
+                                    }
+                                  }}
+                                />
+                                <label htmlFor={item.barangay.name} className="flex-1 text-sm cursor-pointer">
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-medium flex items-center gap-2">
+                                      #{index + 1} {item.barangay.name}
+                                      {item.hasRequest && (
+                                        <Badge variant="outline" className="bg-red-100 text-red-700 text-xs">
+                                          Requested
+                                        </Badge>
+                                      )}
+                                      {item.barangay.name.includes("(Poblacion)") && (
+                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
+                                          Poblacion
+                                        </Badge>
+                                      )}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <Badge variant="outline">
+                                        MCDA: {item.score}%
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    Pop: {item.barangay.population.toLocaleString()} • Urgency:{" "}
+                                    {item.barangay.urgency_score}
+                                    /10 • Food Security: {item.barangay.food_security_level}/10 • Distance:{" "}
+                                    {item.barangay.distance_km}km
+                                  </div>
+                                </label>
+                              </div>
+                            ))
+                        })()}
+                    </div>
+                  </div>
+
+                  {/* Distribution summary */}
+                  {selectedBarangays.length > 0 && selectedCategory && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h4 className="font-medium text-blue-900 mb-2">Distribution Summary</h4>
+                      <p className="text-sm text-blue-800">
+                        Distributing {selectedCategory.items.length} {selectedCategory.category} items to{" "}
+                        {selectedBarangays.length} selected barangays based on MCDA scores and your selection.
+                      </p>
+                      <p className="text-sm text-blue-700">
+                        Items will be allocated proportionally based on MCDA scores of selected barangays.
+                      </p>
+                      <div className="text-xs text-blue-600 mt-2">
+                        Selected ({selectedBarangays.length}): {selectedBarangays.slice(0, 5).join(", ")}
+                        {selectedBarangays.length > 5 && ` and ${selectedBarangays.length - 5} more...`}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => setShowDistributeDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleDistributeCategory}
+                      disabled={selectedBarangays.length === 0 || loading}
+                      className="bg-orange-600 hover:bg-orange-700"
+                    >
+                      {loading ? "Distributing..." : `Distribute to ${selectedBarangays.length} Barangays`}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="rejection-reason">Rejection Reason *</Label>
-                  <Textarea
-                    id="rejection-reason"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="e.g., Food is past expiry date, Packaging is damaged, Not suitable for distribution..."
-                    rows={4}
-                    required
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowRejectDialog(false)
-                      setRejectionReason("")
-                      setSelectedItem(null)
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleRejectFood}
-                    disabled={loading || !rejectionReason.trim()}
-                  >
-                    {loading ? "Rejecting..." : "Reject Donation"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reject Food Donation</DialogTitle>
+                  <DialogDescription>
+                    Please provide a reason for rejecting this donation. The donor will be notified.
+                  </DialogDescription>
+                </DialogHeader>
+                {selectedItem && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-gray-50 rounded">
+                      <p className="font-semibold">{selectedItem.title}</p>
+                      <p className="text-sm text-gray-600">
+                        Category: {selectedItem.category} | Quantity: {selectedItem.quantity} {selectedItem.unit}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Donor: {selectedItem.profiles?.first_name} {selectedItem.profiles?.last_name}
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="rejection-reason">Rejection Reason *</Label>
+                      <Textarea
+                        id="rejection-reason"
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        placeholder="e.g., Food is past expiry date, Packaging is damaged, Not suitable for distribution..."
+                        rows={4}
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowRejectDialog(false)
+                          setRejectionReason("")
+                          setSelectedItem(null)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleRejectFood}
+                        disabled={loading || !rejectionReason.trim()}
+                      >
+                        {loading ? "Rejecting..." : "Reject Donation"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
+        </main>
       </div>
     </div>
   )
