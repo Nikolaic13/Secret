@@ -409,23 +409,68 @@ export default function MunicipalDashboard() {
       const { data, error } = await supabase
         .from("food_requests")
         .select("*")
-        .eq("status", "pending")
         .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("❌ Error fetching food requests:", error)
-        setFoodRequests([])
+      if (!error && data && data.length > 0) {
+        setFoodRequests(data)
+        console.log(`✅ Fetched ${data.length} food requests from database`)
         return
       }
 
-      // Filter to only include requests from official Janiuay barangays
-      const filteredRequests = (data || []).filter((request) => JANIUAY_BARANGAYS.includes(request.barangay_name))
+      // Check localStorage fallback
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("foodshare_food_requests")
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          setFoodRequests(parsed)
+          console.log(`✅ Fetched ${parsed.length} food requests from local storage`)
+          return
+        }
+      }
 
-      setFoodRequests(filteredRequests)
-      console.log(`✅ Fetched ${filteredRequests.length} food requests from official Janiuay barangays`)
+      setFoodRequests([])
     } catch (error) {
       console.error("💥 Exception fetching food requests:", error)
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("foodshare_food_requests")
+        if (stored) {
+          setFoodRequests(JSON.parse(stored))
+          return
+        }
+      }
       setFoodRequests([])
+    }
+  }
+
+  const handleUpdateRequestStatus = async (requestId: string, newStatus: string) => {
+    setLoading(true)
+    try {
+      // 1. Try Supabase
+      try {
+        await supabase.from("food_requests").update({ status: newStatus }).eq("id", requestId)
+      } catch (err) {
+        console.warn("Could not update status via Supabase, using localStorage", err)
+      }
+
+      // 2. Update localStorage
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("foodshare_food_requests")
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          const updated = parsed.map((r: any) => (r.id === requestId ? { ...r, status: newStatus } : r))
+          localStorage.setItem("foodshare_food_requests", JSON.stringify(updated))
+        }
+      }
+
+      // 3. Update React state
+      setFoodRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status: newStatus } : r))
+      )
+
+      setActionMessage(`Food request marked as ${newStatus.toUpperCase()}`)
+      setTimeout(() => setActionMessage(null), 4000)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -1600,8 +1645,21 @@ export default function MunicipalDashboard() {
                                 <span className="font-medium">Quantity Needed:</span> {request.quantity_needed}{" "}
                                 {request.unit}
                               </div>
-                              <div>
-                                <span className="font-medium">Status:</span> {request.status}
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">Status:</span>
+                                <Badge
+                                  className={
+                                    request.status === "approved"
+                                      ? "bg-green-100 text-green-800"
+                                      : request.status === "fulfilled"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : request.status === "rejected"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                  }
+                                >
+                                  {request.status.toUpperCase()}
+                                </Badge>
                               </div>
                             </div>
 
@@ -1616,6 +1674,50 @@ export default function MunicipalDashboard() {
                                   <p className="text-gray-600 mt-1">{request.special_requirements}</p>
                                 </div>
                               )}
+                            </div>
+
+                            {/* Action Buttons for Municipal Officer */}
+                            <div className="mt-4 pt-3 border-t flex flex-wrap items-center justify-between gap-2">
+                              <div className="text-xs text-gray-500">
+                                Municipal Decision & Allocation
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {request.status === "pending" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleUpdateRequestStatus(request.id, "approved")}
+                                      className="bg-green-600 hover:bg-green-700 text-white text-xs h-8"
+                                    >
+                                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                      Approve Request
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleUpdateRequestStatus(request.id, "rejected")}
+                                      className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-8"
+                                    >
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                                {request.status === "approved" && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateRequestStatus(request.id, "fulfilled")}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8"
+                                  >
+                                    <Truck className="h-3.5 w-3.5 mr-1" />
+                                    Mark as Dispatched / Fulfilled
+                                  </Button>
+                                )}
+                                {request.status === "fulfilled" && (
+                                  <Badge variant="outline" className="text-xs text-green-700 bg-green-50">
+                                    Fully Dispatched to Barangay
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
 
                             {/* MCDA Information */}

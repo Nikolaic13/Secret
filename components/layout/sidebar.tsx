@@ -23,7 +23,7 @@ export function Sidebar({ items, title, className }: SidebarProps) {
   const pathname = usePathname()
 
   return (
-    <div className={cn("w-64 border-r border-gray-800 bg-gray-900 text-gray-100 p-4 flex flex-col gap-2 shrink-0", className)}>
+    <div className={cn("w-72 border-r border-gray-800 bg-gray-900 text-gray-100 p-4 flex flex-col gap-2 shrink-0", className)}>
       <div className="flex items-center gap-2 px-2 py-4 mb-4 border-b border-gray-800">
         <Heart className="h-5 w-5 text-green-500 shrink-0" />
         <h1 className="text-md font-bold text-white tracking-tight whitespace-nowrap">FoodShare Janiuay</h1>
