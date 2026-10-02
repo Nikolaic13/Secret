@@ -28,6 +28,9 @@ import {
   Bell,
   XIcon,
   Flame,
+  Clock,
+  History,
+  Navigation,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +39,11 @@ import {
   formatExpiryDisplay,
   ExpiryType,
 } from "@/lib/distribution-service"
+import { LocationPickerMap, LocationViewerMap } from "@/components/maps/location-picker-map"
+import { TransactionLogTimeline } from "@/components/transactions/transaction-timeline"
+import { logDonationTransaction, getTransactionLogs, TransactionLogEntry } from "@/lib/transaction-service"
+import { Sidebar, SidebarItem } from "@/components/layout/sidebar"
+import { Header } from "@/components/layout/header"
 
 interface Profile {
   id: string
@@ -60,6 +68,8 @@ interface FoodItem {
   delivery_method?: string
   pickup_address?: string
   pickup_contact?: string
+  pickup_latitude?: number
+  pickup_longitude?: number
   created_at: string
   rejection_reason?: string
   rejected_at?: string
@@ -79,6 +89,11 @@ export default function DonorDashboard() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [foodItems, setFoodItems] = useState<FoodItem[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [transactionLogs, setTransactionLogs] = useState<TransactionLogEntry[]>([])
+  const [selectedItemForLogs, setSelectedItemForLogs] = useState<FoodItem | null>(null)
+  const [showItemLogsDialog, setShowItemLogsDialog] = useState(false)
+  const [viewingMapItem, setViewingMapItem] = useState<FoodItem | null>(null)
+  const [activeTab, setActiveTab] = useState<"donations" | "new_post" | "transactions" | "guidelines">("donations")
   const [showNotifications, setShowNotifications] = useState(false)
   const [showDonationForm, setShowDonationForm] = useState(false)
   const [showGuidelines, setShowGuidelines] = useState(true)
@@ -99,6 +114,8 @@ export default function DonorDashboard() {
     delivery_method: "pickup",
     pickup_address: "",
     pickup_contact: "",
+    pickup_latitude: 10.9575,
+    pickup_longitude: 122.5028,
   })
   const router = useRouter()
   const supabase = createClient()
@@ -111,7 +128,17 @@ export default function DonorDashboard() {
     checkUser()
     fetchFoodItems()
     fetchNotifications()
+    fetchLogs()
   }, [])
+
+  const fetchLogs = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+    const logs = await getTransactionLogs({ actor_id: user.id })
+    setTransactionLogs(logs)
+  }
 
   const checkUser = async () => {
     const {
@@ -185,6 +212,8 @@ export default function DonorDashboard() {
       delivery_method: "pickup",
       pickup_address: "",
       pickup_contact: "",
+      pickup_latitude: 10.9575,
+      pickup_longitude: 122.5028,
     })
     setEditingItem(null)
   }
@@ -203,9 +232,12 @@ export default function DonorDashboard() {
       delivery_method: item.delivery_method || "pickup",
       pickup_address: item.pickup_address || "",
       pickup_contact: item.pickup_contact || "",
+      pickup_latitude: item.pickup_latitude || 10.9575,
+      pickup_longitude: item.pickup_longitude || 122.5028,
     })
     setEditingItem(item)
     setShowDonationForm(true)
+    setActiveTab("new_post")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -258,9 +290,13 @@ export default function DonorDashboard() {
         if (formData.delivery_method === "pickup") {
           itemData.pickup_address = formData.pickup_address
           itemData.pickup_contact = formData.pickup_contact
+          itemData.pickup_latitude = formData.pickup_latitude
+          itemData.pickup_longitude = formData.pickup_longitude
         } else {
           itemData.pickup_address = null
           itemData.pickup_contact = null
+          itemData.pickup_latitude = null
+          itemData.pickup_longitude = null
         }
       } catch (columnError) {
         console.warn("Delivery method columns not available, skipping:", columnError)
@@ -270,22 +306,52 @@ export default function DonorDashboard() {
       if (editingItem) {
         // Update existing item
         const { error } = await supabase.from("food_items").update(itemData).eq("id", editingItem.id)
-
         if (error) throw error
+
+        await logDonationTransaction({
+          food_item_id: editingItem.id,
+          item_title: itemData.title,
+          actor_id: profile?.id,
+          actor_name: `${profile?.first_name} ${profile?.last_name}`,
+          actor_role: "donor",
+          action_type: "status_change",
+          new_status: editingItem.status,
+          quantity: itemData.quantity,
+          unit: itemData.unit,
+          notes: "Updated donation details and pickup location pin",
+        })
       } else {
         // Create new item
-        const { error } = await supabase.from("food_items").insert({
+        const newItemId = `food_${Date.now()}`
+        const { data: insertedData, error } = await supabase.from("food_items").insert({
           donor_id: profile?.id,
           ...itemData,
           status: "available", // Initial status is available, waiting to be claimed
-        })
+        }).select().single()
 
         if (error) throw error
+
+        const assignedId = insertedData?.id || newItemId
+        await logDonationTransaction({
+          food_item_id: assignedId,
+          item_title: itemData.title,
+          actor_id: profile?.id,
+          actor_name: `${profile?.first_name} ${profile?.last_name}`,
+          actor_role: "donor",
+          action_type: formData.delivery_method === "pickup" ? "pickup_requested" : "donated",
+          new_status: "available",
+          quantity: itemData.quantity,
+          unit: itemData.unit,
+          notes: formData.delivery_method === "pickup" 
+            ? `New donation submitted with pinned pickup coordinates (${formData.pickup_latitude.toFixed(4)}, ${formData.pickup_longitude.toFixed(4)})` 
+            : "New donation posted for drop-off at Municipal Hall",
+        })
       }
 
       resetForm()
       setShowDonationForm(false)
       fetchFoodItems()
+      fetchLogs()
     } catch (error: any) {
       console.error("Error saving food item:", error)
       alert(`Failed to save food item: ${error.message}. Please make sure the database is properly set up.`)
@@ -389,39 +455,100 @@ export default function DonorDashboard() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Heart className="h-8 w-8 text-green-600" />
-            <h1 className="text-2xl font-bold text-green-800">FoodShare Janiuay</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => setShowNotifications(!showNotifications)} className="relative">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifications
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </Button>
-            {profile && (
-              <span className="text-sm text-gray-600">
-                Welcome, {profile.first_name} {profile.last_name}!
-              </span>
-            )}
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+  const donorSidebarItems: SidebarItem[] = [
+    {
+      id: "donations",
+      label: "My Donations",
+      icon: <Package className="h-4 w-4" />,
+      onClick: () => {
+        setActiveTab("donations")
+        setShowDonationForm(false)
+      },
+      isActive: activeTab === "donations" && !showDonationForm,
+    },
+    {
+      id: "new_post",
+      label: "Post Donation",
+      icon: <Plus className="h-4 w-4" />,
+      onClick: () => {
+        setActiveTab("donations")
+        setShowDonationForm(true)
+      },
+      isActive: showDonationForm,
+    },
+    {
+      id: "transactions",
+      label: "Transaction Audit",
+      icon: <History className="h-4 w-4" />,
+      onClick: () => {
+        setActiveTab("transactions")
+        setShowDonationForm(false)
+      },
+      isActive: activeTab === "transactions",
+    },
+    {
+      id: "guidelines",
+      label: "Safety Guidelines",
+      icon: <AlertTriangle className="h-4 w-4" />,
+      onClick: () => {
+        setActiveTab("guidelines")
+        setShowDonationForm(false)
+      },
+      isActive: activeTab === "guidelines",
+    },
+  ]
 
-      <div className="container mx-auto px-4 py-8">
+  return (
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      {/* Collapsible Sidebar */}
+      <Sidebar items={donorSidebarItems} title="Donor Portal" collapsible={true} />
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header
+          userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
+          subtitle="Food Donor"
+          onRefresh={() => {
+            fetchFoodItems()
+            fetchNotifications()
+            fetchLogs()
+          }}
+          onLogout={handleLogout}
+        />
+
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="container mx-auto max-w-6xl">
+            {/* Top Notifications Bar Button */}
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  {activeTab === "transactions"
+                    ? "Donation Transaction Audit Trail"
+                    : activeTab === "guidelines"
+                    ? "Food Safety Guidelines"
+                    : "Donor Surplus Management"}
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Track surplus food contributions, pin pickup locations, and monitor distribution
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative text-xs"
+                >
+                  <Bell className="h-3.5 w-3.5 mr-1.5" />
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="ml-1 bg-red-500 text-white text-[10px] rounded-full px-1.5 py-0.2">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </div>
         {showNotifications && (
           <Card className="mb-8">
             <CardHeader>
@@ -891,26 +1018,43 @@ export default function DonorDashboard() {
                   </RadioGroup>
 
                   {formData.delivery_method === "pickup" && (
-                    <div className="grid md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="space-y-2">
-                        <Label htmlFor="pickup_address">Pickup Address *</Label>
-                        <Textarea
-                          id="pickup_address"
-                          placeholder="Enter your complete address for pickup"
-                          value={formData.pickup_address}
-                          onChange={(e) => setFormData({ ...formData, pickup_address: e.target.value })}
-                          required={formData.delivery_method === "pickup"}
-                        />
+                    <div className="space-y-4 p-4 bg-blue-50/70 rounded-lg border border-blue-200">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="pickup_address">Pickup Address *</Label>
+                          <Textarea
+                            id="pickup_address"
+                            placeholder="Enter your street, purok, or landmark address"
+                            value={formData.pickup_address}
+                            onChange={(e) => setFormData({ ...formData, pickup_address: e.target.value })}
+                            required={formData.delivery_method === "pickup"}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="pickup_contact">Contact Number *</Label>
+                          <Input
+                            id="pickup_contact"
+                            type="tel"
+                            placeholder="e.g., 09123456789"
+                            value={formData.pickup_contact}
+                            onChange={(e) => setFormData({ ...formData, pickup_contact: e.target.value })}
+                            required={formData.delivery_method === "pickup"}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="pickup_contact">Contact Number *</Label>
-                        <Input
-                          id="pickup_contact"
-                          type="tel"
-                          placeholder="e.g., 09123456789"
-                          value={formData.pickup_contact}
-                          onChange={(e) => setFormData({ ...formData, pickup_contact: e.target.value })}
-                          required={formData.delivery_method === "pickup"}
+
+                      {/* OpenStreetMap Pinner with Device Auto-Locate */}
+                      <div className="pt-2">
+                        <LocationPickerMap
+                          initialLat={formData.pickup_latitude}
+                          initialLng={formData.pickup_longitude}
+                          onChange={(pos) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              pickup_latitude: pos.lat,
+                              pickup_longitude: pos.lng,
+                            }))
+                          }
                         />
                       </div>
                     </div>
@@ -1102,7 +1246,7 @@ export default function DonorDashboard() {
 
                     {/* Delivery Information */}
                     {item.delivery_method === "pickup" && item.pickup_address && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-start gap-2">
                           <Truck className="h-4 w-4 text-blue-600 mt-0.5" />
                           <div className="text-sm">
@@ -1116,11 +1260,37 @@ export default function DonorDashboard() {
                             )}
                           </div>
                         </div>
+
+                        <div className="flex items-center gap-2">
+                          {item.pickup_latitude && item.pickup_longitude && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setViewingMapItem(item)}
+                              className="text-xs bg-white text-blue-700 border-blue-300 hover:bg-blue-100 flex items-center gap-1"
+                            >
+                              <MapPin className="h-3 w-3 text-blue-600" />
+                              View Pinned Location
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedItemForLogs(item)
+                              setShowItemLogsDialog(true)
+                            }}
+                            className="text-xs bg-white text-gray-700 border-gray-300 hover:bg-gray-100 flex items-center gap-1"
+                          >
+                            <History className="h-3 w-3 text-purple-600" />
+                            Audit Trail
+                          </Button>
+                        </div>
                       </div>
                     )}
 
                     {item.delivery_method === "dropoff" && (
-                      <div className="mt-3 p-3 bg-green-50 rounded-lg">
+                      <div className="mt-3 p-3 bg-green-50 rounded-lg flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-start gap-2">
                           <MapPin className="h-4 w-4 text-green-600 mt-0.5" />
                           <div className="text-sm">
@@ -1128,6 +1298,18 @@ export default function DonorDashboard() {
                             <p className="text-green-700">{MUNICIPAL_HALL_ADDRESS}</p>
                           </div>
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedItemForLogs(item)
+                            setShowItemLogsDialog(true)
+                          }}
+                          className="text-xs bg-white text-gray-700 border-gray-300 hover:bg-gray-100 flex items-center gap-1"
+                        >
+                          <History className="h-3 w-3 text-purple-600" />
+                          Audit Trail
+                        </Button>
                       </div>
                     )}
 
@@ -1192,6 +1374,71 @@ export default function DonorDashboard() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* View Pinned Pickup Location Modal */}
+        <Dialog open={!!viewingMapItem} onOpenChange={() => setViewingMapItem(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-blue-600" />
+                Pickup Location Pin: {viewingMapItem?.title}
+              </DialogTitle>
+              <DialogDescription>
+                Specific geographical coordinates pinned for driver pickup.
+              </DialogDescription>
+            </DialogHeader>
+            {viewingMapItem && viewingMapItem.pickup_latitude && viewingMapItem.pickup_longitude && (
+              <div className="py-2">
+                <LocationViewerMap
+                  latitude={viewingMapItem.pickup_latitude}
+                  longitude={viewingMapItem.pickup_longitude}
+                  title={viewingMapItem.title}
+                  address={viewingMapItem.pickup_address}
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Item Transaction History Audit Modal */}
+        <Dialog open={showItemLogsDialog} onOpenChange={setShowItemLogsDialog}>
+          <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-purple-600" />
+                Audit Trail: {selectedItemForLogs?.title}
+              </DialogTitle>
+              <DialogDescription>
+                Complete lifecycle verification of this food donation from posting to beneficiary receipt.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <TransactionLogTimeline
+                logs={transactionLogs.filter((l) => l.food_item_id === selectedItemForLogs?.id)}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Global Transaction Audit Trail Tab */}
+        {activeTab === "transactions" && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <History className="h-5 w-5 text-purple-600" />
+                All Donation Audit Transactions
+              </CardTitle>
+              <CardDescription>
+                Real-time chronological log of all your contributions and MSWD actions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TransactionLogTimeline logs={transactionLogs} />
+            </CardContent>
+          </Card>
+        )}
+          </div>
+        </main>
       </div>
     </div>
   )

@@ -34,8 +34,18 @@ import {
   CheckSquare,
   Square,
   X,
+  History,
+  RotateCcw,
+  Navigation,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { LocationViewerMap } from "@/components/maps/location-picker-map"
+import { TransactionLogTimeline } from "@/components/transactions/transaction-timeline"
+import {
+  logDonationTransaction,
+  getTransactionLogs,
+  TransactionLogEntry,
+} from "@/lib/transaction-service"
 
 interface FoodItem {
   id: string
@@ -55,6 +65,10 @@ interface FoodItem {
   delivery_method: string
   pickup_address: string
   pickup_contact: string
+  pickup_latitude?: number
+  pickup_longitude?: number
+  is_manual_override?: boolean
+  override_reason?: string
   created_at: string
   donor_id: string
   rejection_reason?: string // Added for rejection
@@ -135,6 +149,16 @@ export default function MunicipalDashboard() {
 
   const [rejectionReason, setRejectionReason] = useState("")
   const [activeTab, setActiveTab] = useState("donations")
+
+  // New Features States: Manual Override, Map View & Audit Trail
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false)
+  const [overrideItem, setOverrideItem] = useState<FoodItem | null>(null)
+  const [overrideBarangay, setOverrideBarangay] = useState("")
+  const [overrideReason, setOverrideReason] = useState("")
+  const [viewingMapItem, setViewingMapItem] = useState<FoodItem | null>(null)
+  const [transactionLogs, setTransactionLogs] = useState<TransactionLogEntry[]>([])
+  const [selectedItemForLogs, setSelectedItemForLogs] = useState<FoodItem | null>(null)
+  const [showItemLogsDialog, setShowItemLogsDialog] = useState(false)
 
   const router = useRouter()
   const supabase = createClient()
@@ -312,13 +336,22 @@ export default function MunicipalDashboard() {
 
     try {
       console.log("🔄 Starting to fetch all data...")
-      await Promise.all([fetchFoodItems(), fetchBarangayData(), fetchFoodRequests()])
+      await Promise.all([fetchFoodItems(), fetchBarangayData(), fetchFoodRequests(), fetchLogs()])
       console.log("✅ All data fetched successfully")
     } catch (error) {
       console.error("💥 Error fetching data:", error)
       setFetchError("Failed to load dashboard data")
     } finally {
       setDataLoading(false)
+    }
+  }
+
+  const fetchLogs = async () => {
+    try {
+      const logs = await getTransactionLogs()
+      setTransactionLogs(logs)
+    } catch (err) {
+      console.error("Error fetching transaction logs:", err)
     }
   }
 
@@ -617,6 +650,7 @@ export default function MunicipalDashboard() {
 
     try {
       console.log(`🤝 Claiming food item ${foodId}...`)
+      const targetItem = foodItems.find((f) => f.id === foodId)
 
       const { error } = await supabase
         .from("food_items")
@@ -629,8 +663,23 @@ export default function MunicipalDashboard() {
 
       if (error) throw error
 
+      await logDonationTransaction({
+        food_item_id: foodId,
+        item_title: targetItem?.title || "Food Item",
+        actor_id: user?.id,
+        actor_name: `${profile?.first_name} ${profile?.last_name}`,
+        actor_role: "mswd_representative",
+        action_type: "claimed",
+        old_status: "available",
+        new_status: "waiting_pickup",
+        quantity: targetItem?.quantity,
+        unit: targetItem?.unit,
+        notes: `Food item verified and claimed by MSWD for pickup / dropoff processing`,
+      })
+
       setActionMessage("Food item claimed successfully!")
       await fetchFoodItems()
+      await fetchLogs()
       setTimeout(() => setActionMessage(null), 3000)
     } catch (error: any) {
       console.error("💥 Error claiming food:", error)
@@ -662,12 +711,27 @@ export default function MunicipalDashboard() {
 
       if (error) throw error
 
+      await logDonationTransaction({
+        food_item_id: selectedItem.id,
+        item_title: selectedItem.title,
+        actor_id: user?.id,
+        actor_name: `${profile?.first_name} ${profile?.last_name}`,
+        actor_role: "mswd_representative",
+        action_type: "stored",
+        old_status: selectedItem.status,
+        new_status: "ready_distribution",
+        quantity: selectedItem.quantity,
+        unit: selectedItem.unit,
+        notes: `Stored at ${storageLocation}. Notes: ${storageNotes || "None"}`,
+      })
+
       setActionMessage("Food item stored successfully!")
       setShowStoreDialog(false)
       setSelectedItem(null)
       setStorageLocation("")
       setStorageNotes("")
       await fetchFoodItems()
+      await fetchLogs()
       setTimeout(() => setActionMessage(null), 3000)
     } catch (error: any) {
       console.error("💥 Error storing food:", error)
@@ -890,6 +954,89 @@ export default function MunicipalDashboard() {
     }
   }
 
+  const handleManualOverrideDonation = async () => {
+    if (!overrideItem || !overrideBarangay) {
+      setActionMessage("Please select a target barangay for the manual allocation.")
+      return
+    }
+
+    setLoading(true)
+    setActionMessage(null)
+
+    try {
+      console.log(`⚡ Manually overriding donation ${overrideItem.id} to ${overrideBarangay}...`)
+
+      const { error: updateError } = await supabase
+        .from("food_items")
+        .update({
+          status: "claimed",
+          storage_status: "allocated",
+          assigned_barangay: overrideBarangay,
+          claimed_at: new Date().toISOString(),
+          is_manual_override: true,
+          override_reason: overrideReason || "Manual MSWD administrative allocation",
+        })
+        .eq("id", overrideItem.id)
+
+      if (updateError) throw updateError
+
+      // Log distribution
+      await supabase.from("distribution_logs").insert({
+        food_item_id: overrideItem.id,
+        barangay_name: overrideBarangay,
+        quantity_distributed: overrideItem.quantity,
+        distribution_method: "manual_mswd_override",
+        mcda_score: 100,
+        requested_quantity: overrideItem.quantity,
+        category: overrideItem.category,
+        distributed_by: user.id,
+        notes: `MSWD Manual Override: ${overrideReason || "Administrative Priority Dispatch"}`,
+        created_at: new Date().toISOString(),
+      })
+
+      // Send Notification to recipient barangay
+      await supabase.from("notifications").insert({
+        recipient_barangay: overrideBarangay,
+        food_item_id: overrideItem.id,
+        message: `MSWD has manually allocated "${overrideItem.title}" (${overrideItem.quantity} ${overrideItem.unit}) to your barangay. Reason: ${overrideReason || "Administrative allocation"}`,
+        type: "mswd_manual_allocation",
+        priority_score: 10,
+        created_at: new Date().toISOString(),
+      })
+
+      // Record in unified transaction log
+      await logDonationTransaction({
+        food_item_id: overrideItem.id,
+        item_title: overrideItem.title,
+        actor_id: user?.id,
+        actor_name: `${profile?.first_name} ${profile?.last_name}`,
+        actor_role: "mswd_representative",
+        action_type: "manual_overridden",
+        old_status: overrideItem.status,
+        new_status: "allocated",
+        target_barangay: overrideBarangay,
+        quantity: overrideItem.quantity,
+        unit: overrideItem.unit,
+        notes: `MSWD Process Override to Brgy. ${overrideBarangay}. Reason: ${overrideReason || "Administrative override"}`,
+      })
+
+      setActionMessage(
+        `Successfully overridden! "${overrideItem.title}" allocated directly to Brgy. ${overrideBarangay}.`
+      )
+      setShowOverrideDialog(false)
+      setOverrideItem(null)
+      setOverrideBarangay("")
+      setOverrideReason("")
+      await fetchAllData()
+      setTimeout(() => setActionMessage(null), 5000)
+    } catch (error: any) {
+      console.error("💥 Error during manual override:", error)
+      setActionMessage(`Failed manual override: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push("/")
@@ -988,6 +1135,13 @@ export default function MunicipalDashboard() {
       icon: <Utensils className="h-4 w-4" />,
       onClick: () => setActiveTab("requests"),
       isActive: activeTab === "requests",
+    },
+    {
+      id: "audit_trail",
+      label: "Transaction Audit Trail",
+      icon: <History className="h-4 w-4" />,
+      onClick: () => setActiveTab("audit_trail"),
+      isActive: activeTab === "audit_trail",
     },
   ]
 
@@ -1204,15 +1358,40 @@ export default function MunicipalDashboard() {
                               </div>
 
                               {/* Action Buttons */}
-                              <div className="ml-6 flex flex-col gap-2">
+                              <div className="ml-6 flex flex-col gap-2 shrink-0">
+                                {item.pickup_latitude && item.pickup_longitude && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setViewingMapItem(item)}
+                                    className="text-xs bg-white text-blue-700 border-blue-300 hover:bg-blue-50"
+                                  >
+                                    <MapPin className="h-3.5 w-3.5 mr-1 text-blue-600" />
+                                    Map Pin
+                                  </Button>
+                                )}
+
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedItemForLogs(item)
+                                    setShowItemLogsDialog(true)
+                                  }}
+                                  className="text-xs bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                                >
+                                  <History className="h-3.5 w-3.5 mr-1 text-purple-600" />
+                                  Audit Trail
+                                </Button>
+
                                 {item.status === "available" && (
                                   <>
                                     <Button
                                       onClick={() => handleClaimFood(item.id)}
                                       disabled={loading}
-                                      className="bg-green-600 hover:bg-green-700"
+                                      className="bg-green-600 hover:bg-green-700 text-xs"
                                     >
-                                      <Package className="h-4 w-4 mr-1" />
+                                      <Package className="h-3.5 w-3.5 mr-1" />
                                       Claim
                                     </Button>
                                     <Button
@@ -1222,8 +1401,9 @@ export default function MunicipalDashboard() {
                                       }}
                                       disabled={loading}
                                       variant="destructive"
+                                      className="text-xs"
                                     >
-                                      <X className="h-4 w-4 mr-1" />
+                                      <X className="h-3.5 w-3.5 mr-1" />
                                       Reject
                                     </Button>
                                   </>
@@ -1235,17 +1415,33 @@ export default function MunicipalDashboard() {
                                       setSelectedItem(item)
                                       setShowStoreDialog(true)
                                     }}
-                                    className="bg-blue-600 hover:bg-blue-700"
+                                    className="bg-blue-600 hover:bg-blue-700 text-xs"
                                   >
-                                    <Warehouse className="h-4 w-4 mr-1" />
+                                    <Warehouse className="h-3.5 w-3.5 mr-1" />
                                     Store
                                   </Button>
                                 )}
 
+                                {/* Manual Override Button available for ready in-storage items or re-allocating */}
+                                {["in_storage", "allocated"].includes(item.storage_status) && (
+                                  <Button
+                                    onClick={() => {
+                                      setOverrideItem(item)
+                                      setOverrideBarangay(item.assigned_barangay || "")
+                                      setOverrideReason(item.override_reason || "")
+                                      setShowOverrideDialog(true)
+                                    }}
+                                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs"
+                                  >
+                                    <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                    {item.storage_status === "allocated" ? "Override Allocation" : "Manual Donate"}
+                                  </Button>
+                                )}
+
                                 {item.storage_status === "in_storage" && (
-                                  <Badge className="bg-green-100 text-green-800">
+                                  <Badge className="bg-green-100 text-green-800 text-[11px] justify-center">
                                     <CheckCircle className="h-3 w-3 mr-1" />
-                                    Ready for Distribution
+                                    In Storage
                                   </Badge>
                                 )}
                               </div>
@@ -1484,23 +1680,61 @@ export default function MunicipalDashboard() {
                                     <div key={item.id} className="bg-gray-50 rounded-lg p-4">
                                       <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1">
-                                          <div className="flex items-center gap-2 mb-1">
+                                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                                             <h4 className="font-medium">{item.title}</h4>
                                             <Badge variant="outline">{item.category}</Badge>
                                             <Badge className={getStatusColor(item.status)}>
                                               {item.status.replace("_", " ")}
                                             </Badge>
+                                            {item.is_manual_override && (
+                                              <Badge className="bg-rose-100 text-rose-800 text-[10px] border-rose-300">
+                                                Manual Override
+                                              </Badge>
+                                            )}
                                           </div>
+                                          {item.override_reason && (
+                                            <p className="text-xs text-rose-700 italic mb-1">
+                                              Override reason: "{item.override_reason}"
+                                            </p>
+                                          )}
                                           {item.description && (
                                             <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                                           )}
                                         </div>
-                                        <div className="text-right text-sm text-gray-600">
+                                        <div className="text-right text-sm text-gray-600 flex flex-col items-end gap-1">
                                           <div className="font-medium">
                                             {item.quantity} {item.unit}
                                           </div>
                                           <div className="text-xs">
                                             Expires: {new Date(item.expiry_date).toLocaleDateString()}
+                                          </div>
+                                          <div className="flex items-center gap-1 mt-1">
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => {
+                                                setOverrideItem(item)
+                                                setOverrideBarangay(item.assigned_barangay || "")
+                                                setOverrideReason(item.override_reason || "")
+                                                setShowOverrideDialog(true)
+                                              }}
+                                              className="h-6 text-[10px] px-2 text-rose-700 border-rose-300 hover:bg-rose-50"
+                                            >
+                                              <RotateCcw className="h-2.5 w-2.5 mr-1" />
+                                              Override
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => {
+                                                setSelectedItemForLogs(item)
+                                                setShowItemLogsDialog(true)
+                                              }}
+                                              className="h-6 text-[10px] px-2 text-purple-700 border-purple-300 hover:bg-purple-50"
+                                            >
+                                              <History className="h-2.5 w-2.5 mr-1" />
+                                              Audit
+                                            </Button>
                                           </div>
                                         </div>
                                       </div>
@@ -1732,6 +1966,24 @@ export default function MunicipalDashboard() {
                         ))}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Transaction Audit Trail Tab */}
+              <TabsContent value="audit_trail">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="h-5 w-5 text-purple-600" />
+                      Comprehensive Donation Audit Trail & Transaction Logs
+                    </CardTitle>
+                    <CardDescription>
+                      Full immutable log tracking every donation lifecycle step: Donated &rarr; Claimed &rarr; Stored &rarr; MCDA / Manual Override &rarr; Distributed.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TransactionLogTimeline logs={transactionLogs} />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -2003,6 +2255,137 @@ export default function MunicipalDashboard() {
                     </div>
                   </div>
                 )}
+              </DialogContent>
+            </Dialog>
+
+            {/* MSWD Manual Override / Direct Donation Modal */}
+            <Dialog open={showOverrideDialog} onOpenChange={setShowOverrideDialog}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-rose-700">
+                    <RotateCcw className="h-5 w-5" />
+                    MSWD Manual Process Override
+                  </DialogTitle>
+                  <DialogDescription>
+                    Directly allocate or reassign food aid to any barangay, bypassing algorithmic distribution.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {overrideItem && (
+                  <div className="space-y-4 py-2">
+                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-lg text-xs space-y-1">
+                      <p className="font-bold text-gray-900">{overrideItem.title}</p>
+                      <p className="text-gray-600">
+                        Category: {overrideItem.category} | Qty: {overrideItem.quantity} {overrideItem.unit}
+                      </p>
+                      {overrideItem.assigned_barangay && (
+                        <p className="text-amber-700 font-medium">
+                          Currently Assigned To: {overrideItem.assigned_barangay}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="target-barangay" className="text-xs font-semibold">
+                        Target Recipient Barangay *
+                      </Label>
+                      <Select value={overrideBarangay} onValueChange={setOverrideBarangay}>
+                        <SelectTrigger id="target-barangay">
+                          <SelectValue placeholder="Select target barangay..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {JANIUAY_BARANGAYS.map((b) => (
+                            <SelectItem key={b} value={b}>
+                              {b}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="override-reason" className="text-xs font-semibold">
+                        Justification / Administrative Reason *
+                      </Label>
+                      <Textarea
+                        id="override-reason"
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                        placeholder="e.g., Immediate typhoon flood relief, emergency community feeding, urgent senior citizen request..."
+                        rows={3}
+                        className="text-xs"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowOverrideDialog(false)
+                          setOverrideItem(null)
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleManualOverrideDonation}
+                        disabled={loading || !overrideBarangay}
+                        className="bg-rose-600 hover:bg-rose-700 text-white"
+                      >
+                        {loading ? "Processing..." : "Confirm Override & Dispatch"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* View Pinned Pickup Location Modal */}
+            <Dialog open={!!viewingMapItem} onOpenChange={() => setViewingMapItem(null)}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-blue-600" />
+                    Donor Pinned Location: {viewingMapItem?.title}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Exact OpenStreetMap GPS coordinate pin set by donor for driver collection.
+                  </DialogDescription>
+                </DialogHeader>
+                {viewingMapItem && viewingMapItem.pickup_latitude && viewingMapItem.pickup_longitude && (
+                  <div className="py-2">
+                    <LocationViewerMap
+                      latitude={viewingMapItem.pickup_latitude}
+                      longitude={viewingMapItem.pickup_longitude}
+                      title={viewingMapItem.title}
+                      address={viewingMapItem.pickup_address}
+                    />
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* Item Transaction History Audit Modal */}
+            <Dialog open={showItemLogsDialog} onOpenChange={setShowItemLogsDialog}>
+              <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5 text-purple-600" />
+                    Audit Trail: {selectedItemForLogs?.title}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Full chronological audit log of all events for this food donation.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-2">
+                  <TransactionLogTimeline
+                    logs={transactionLogs.filter((l) => l.food_item_id === selectedItemForLogs?.id)}
+                  />
+                </div>
               </DialogContent>
             </Dialog>
           </div>
