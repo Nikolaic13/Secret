@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useBarangay } from "./context"
-import { Heart, Bell, LogOut, Users, Package, AlertTriangle, HeartHandshake, Flame } from "lucide-react"
+import { Heart, Bell, LogOut, Users, Package, AlertTriangle, HeartHandshake, Flame, Boxes } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sidebar } from "@/components/layout/sidebar"
 
@@ -50,6 +50,12 @@ export function BarangayLayoutClient({ children }: { children: React.ReactNode }
       label: "Beneficiaries & Urgent",
       icon: <Flame className="h-4 w-4 text-red-400" />,
       href: "/dashboard/barangay/beneficiaries",
+    },
+    {
+      id: "inventory",
+      label: "Food & Pack Inventory",
+      icon: <Boxes className="h-4 w-4 text-amber-500" />,
+      href: "/dashboard/barangay/inventory",
     },
     {
       id: "distribution",

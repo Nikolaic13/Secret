@@ -7,13 +7,19 @@ import {
   getBeneficiaries,
   getClothingInventory,
   getDistributions,
+  getFoodInventory,
+  getFoodPacks,
   recordDistribution,
   Beneficiary,
   ClothingItem,
   DistributionRecord,
+  FoodInventoryItem,
+  FoodPack,
   getAgeCategory,
   getAgeGroupLabel,
   isClothingAgeAppropriate,
+  getFoodItemUrgency,
+  formatExpiryDisplay,
 } from "@/lib/distribution-service"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -51,6 +57,7 @@ import {
   Clock,
   History,
   Info,
+  Boxes,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -72,6 +79,8 @@ export default function DistributionPage() {
   const [activeTab, setActiveTab] = useState("form")
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([])
   const [clothingInventory, setClothingInventory] = useState<ClothingItem[]>([])
+  const [foodInventory, setFoodInventory] = useState<FoodInventoryItem[]>([])
+  const [foodPacks, setFoodPacks] = useState<FoodPack[]>([])
   const [distributionHistory, setDistributionHistory] = useState<DistributionRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -81,8 +90,9 @@ export default function DistributionPage() {
     new Date().toISOString().split("T")[0]
   )
   const [itemType, setItemType] = useState<"food" | "clothing" | "relief_pack">("food")
-  const [foodItem, setFoodItem] = useState<string>(SAMPLE_FOOD_ITEMS[0].name)
+  const [foodItem, setFoodItem] = useState<string>("")
   const [clothingItem, setClothingItem] = useState<string>("")
+  const [selectedPackName, setSelectedPackName] = useState<string>("")
   const [quantity, setQuantity] = useState<number>(1)
   const [unit, setUnit] = useState<string>("packs")
   const [distributorName, setDistributorName] = useState<string>(
@@ -109,17 +119,28 @@ export default function DistributionPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [bData, cData, dData] = await Promise.all([
+      const [bData, cData, fData, pData, dData] = await Promise.all([
         getBeneficiaries(barangayName),
         getClothingInventory(barangayName),
+        getFoodInventory(barangayName),
+        getFoodPacks(barangayName),
         getDistributions(barangayName),
       ])
       setBeneficiaries(bData)
       setClothingInventory(cData)
+      setFoodInventory(fData)
+      setFoodPacks(pData)
       setDistributionHistory(dData)
 
       if (cData.length > 0 && !clothingItem) {
         setClothingItem(cData[0].item_name)
+      }
+      if (fData.length > 0 && !foodItem) {
+        setFoodItem(fData[0].item_name)
+        setUnit(fData[0].unit)
+      }
+      if (pData.length > 0 && !selectedPackName) {
+        setSelectedPackName(pData[0].pack_name)
       }
     } finally {
       setLoading(false)
@@ -137,8 +158,11 @@ export default function DistributionPage() {
     return isClothingAgeAppropriate(beneficiaryAge, c).isAppropriate
   })
 
-  // Selected Clothing Item Details
+  // Selected Clothing, Food, and Pack Item Details
   const activeClothingObj = clothingInventory.find((c) => c.item_name === clothingItem)
+  const activeFoodObj = foodInventory.find((f) => f.item_name === foodItem)
+  const activePackObj = foodPacks.find((p) => p.pack_name === selectedPackName)
+
   const ageAppropriateness =
     beneficiaryAge !== null && activeClothingObj
       ? isClothingAgeAppropriate(beneficiaryAge, activeClothingObj)
@@ -168,9 +192,17 @@ export default function DistributionPage() {
         setClothingItem(availableClothing[0].item_name)
       }
     } else if (type === "food") {
-      setUnit("packs")
+      if (foodInventory.length > 0) {
+        setFoodItem(foodInventory[0].item_name)
+        setUnit(foodInventory[0].unit)
+      } else {
+        setUnit("packs")
+      }
     } else {
-      setUnit("kits")
+      if (foodPacks.length > 0) {
+        setSelectedPackName(foodPacks[0].pack_name)
+      }
+      setUnit("packs")
     }
   }
 
@@ -195,7 +227,21 @@ export default function DistributionPage() {
 
     if (itemType === "clothing" && activeClothingObj && activeClothingObj.quantity < quantity) {
       setErrorMessage(
-        `Insufficient inventory stock: only ${activeClothingObj.quantity} remaining for "${activeClothingObj.item_name}".`
+        `Insufficient clothing stock: only ${activeClothingObj.quantity} remaining for "${activeClothingObj.item_name}".`
+      )
+      return
+    }
+
+    if (itemType === "food" && activeFoodObj && activeFoodObj.quantity < quantity) {
+      setErrorMessage(
+        `Insufficient food stock: only ${activeFoodObj.quantity} ${activeFoodObj.unit} available for "${activeFoodObj.item_name}".`
+      )
+      return
+    }
+
+    if (itemType === "relief_pack" && activePackObj && activePackObj.quantity_available < quantity) {
+      setErrorMessage(
+        `Insufficient packs: only ${activePackObj.quantity_available} available for "${activePackObj.pack_name}". Assemble more in the Food Pack Creator.`
       )
       return
     }
@@ -213,10 +259,10 @@ export default function DistributionPage() {
         clothingSize = activeClothingObj.size
         clothingAgeGroup = activeClothingObj.target_age_group
       } else if (itemType === "food") {
-        finalItemName = foodItem
-        finalCategory = "Food Aid"
+        finalItemName = activeFoodObj?.item_name || foodItem
+        finalCategory = activeFoodObj?.category ? activeFoodObj.category.replace("_", " ") : "Food Aid"
       } else {
-        finalItemName = "Emergency Family Relief Pack"
+        finalItemName = activePackObj?.pack_name || "Emergency Family Relief Pack"
         finalCategory = "Relief Pack"
       }
 
@@ -274,12 +320,20 @@ export default function DistributionPage() {
           </p>
         </div>
 
-        <Link href="/dashboard/barangay/beneficiaries">
-          <Button variant="outline" className="border-gray-300 flex items-center gap-2 text-xs">
-            <User className="h-4 w-4 text-gray-500" />
-            Manage Beneficiaries
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/barangay/inventory">
+            <Button variant="outline" className="border-gray-300 flex items-center gap-2 text-xs">
+              <Boxes className="h-4 w-4 text-amber-500" />
+              Manage Food & Pack Inventory
+            </Button>
+          </Link>
+          <Link href="/dashboard/barangay/beneficiaries">
+            <Button variant="outline" className="border-gray-300 flex items-center gap-2 text-xs">
+              <User className="h-4 w-4 text-gray-500" />
+              Manage Beneficiaries
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -511,37 +565,143 @@ export default function DistributionPage() {
                     </div>
                   ) : itemType === "food" ? (
                     <div className="space-y-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                      <Label htmlFor="food_item" className="text-sm font-semibold text-emerald-950 flex items-center gap-2">
-                        <Apple className="h-4 w-4 text-emerald-600" />
-                        Select Food Relief Item *
-                      </Label>
-                      <Select value={foodItem} onValueChange={setFoodItem}>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="food_item" className="text-sm font-semibold text-emerald-950 flex items-center gap-2">
+                          <Apple className="h-4 w-4 text-emerald-600" />
+                          Select Food Relief Item *
+                        </Label>
+                        <Link
+                          href="/dashboard/barangay/inventory"
+                          className="text-xs text-emerald-700 hover:underline flex items-center gap-1 font-medium"
+                        >
+                          + Log new stock
+                        </Link>
+                      </div>
+
+                      <Select
+                        value={foodItem}
+                        onValueChange={(val) => {
+                          setFoodItem(val)
+                          const item = foodInventory.find((f) => f.item_name === val)
+                          if (item) setUnit(item.unit)
+                        }}
+                      >
                         <SelectTrigger id="food_item" className="bg-white">
-                          <SelectValue />
+                          <SelectValue placeholder="Choose food item from inventory..." />
                         </SelectTrigger>
-                        <SelectContent>
-                          {SAMPLE_FOOD_ITEMS.map((item) => (
-                            <SelectItem key={item.id} value={item.name}>
-                              <div className="flex items-center justify-between gap-4 py-0.5">
-                                <span>{item.name}</span>
-                                <Badge variant="outline" className="text-[10px] text-gray-500">
-                                  {item.category}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="max-h-72">
+                          {foodInventory.map((item) => {
+                            const urgency = getFoodItemUrgency(item)
+                            return (
+                              <SelectItem key={item.id} value={item.item_name}>
+                                <div className="flex items-center justify-between gap-4 py-0.5">
+                                  <div className="flex flex-col text-left">
+                                    <span className="font-medium text-gray-900">{item.item_name}</span>
+                                    <span className="text-[10px] text-gray-500">
+                                      {formatExpiryDisplay(item)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${urgency.badgeClass}`}
+                                    >
+                                      {urgency.label}
+                                    </span>
+                                    <span className="text-xs text-gray-500 font-semibold">
+                                      Stock: {item.quantity} {item.unit}
+                                    </span>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
                         </SelectContent>
                       </Select>
+
+                      {/* FEFO Priority Prompt */}
+                      {activeFoodObj && (() => {
+                        const urgency = getFoodItemUrgency(activeFoodObj)
+                        if (urgency.isExpiringSoon) {
+                          return (
+                            <Alert className="bg-rose-50 border-rose-200 text-rose-900 py-2.5">
+                              <Flame className="h-4 w-4 text-rose-500 shrink-0" />
+                              <AlertTitle className="text-xs font-bold text-rose-800">
+                                FEFO Priority Item ({urgency.label})
+                              </AlertTitle>
+                              <AlertDescription className="text-xs text-rose-700 mt-0.5">
+                                This food item is nearing expiration. Handing it out now ensures prompt consumption without waste.
+                              </AlertDescription>
+                            </Alert>
+                          )
+                        }
+                        return null
+                      })()}
                     </div>
                   ) : (
-                    <div className="p-4 bg-orange-50/50 rounded-xl border border-orange-100 space-y-1">
-                      <span className="text-sm font-semibold text-orange-950 flex items-center gap-2">
-                        <Package className="h-4 w-4 text-orange-600" />
-                        Standard Disaster & Crisis Relief Pack
-                      </span>
-                      <p className="text-xs text-orange-800">
-                        Includes 5kg fortified rice, 6 canned proteins, 4 instant noodles, energy biscuits, and mineral water.
-                      </p>
+                    <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="pack_item" className="text-sm font-semibold text-orange-950 flex items-center gap-2">
+                          <Package className="h-4 w-4 text-orange-600" />
+                          Select Assembled Food Pack *
+                        </Label>
+                        <Link
+                          href="/dashboard/barangay/inventory"
+                          className="text-xs text-orange-700 hover:underline flex items-center gap-1 font-medium"
+                        >
+                          Assemble more packs
+                        </Link>
+                      </div>
+
+                      <Select value={selectedPackName} onValueChange={setSelectedPackName}>
+                        <SelectTrigger id="pack_item" className="bg-white">
+                          <SelectValue placeholder="Choose a ready food pack..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {foodPacks.map((pack) => {
+                            const urgency = getFoodItemUrgency({
+                              expiry_type: "exact",
+                              expiry_date: pack.earliest_expiry_date,
+                            })
+                            return (
+                              <SelectItem key={pack.id} value={pack.pack_name}>
+                                <div className="flex items-center justify-between gap-4 py-0.5">
+                                  <span className="font-medium text-gray-900">{pack.pack_name}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${urgency.badgeClass}`}
+                                    >
+                                      Earliest: {urgency.label}
+                                    </span>
+                                    <span className="text-xs text-gray-500 font-semibold">
+                                      Ready: {pack.quantity_available}
+                                    </span>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
+
+                      {activePackObj && (
+                        <div className="bg-white p-2.5 rounded-lg border border-orange-200 text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-gray-800">
+                              Contents ({activePackObj.contents.length} items bundled):
+                            </span>
+                            <span className="text-[10px] text-gray-500">
+                              Earliest Expiry: {activePackObj.earliest_expiry_date}
+                            </span>
+                          </div>
+                          <ul className="text-gray-600 text-[11px] list-disc list-inside">
+                            {activePackObj.contents.map((c, i) => (
+                              <li key={i}>
+                                {c.quantity_per_pack} {c.unit} {c.item_name}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
 

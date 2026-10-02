@@ -27,9 +27,15 @@ import {
   Trash2,
   Bell,
   XIcon,
+  Flame,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Badge } from "@/components/ui/badge"
+import {
+  getFoodItemUrgency,
+  formatExpiryDisplay,
+  ExpiryType,
+} from "@/lib/distribution-service"
 
 interface Profile {
   id: string
@@ -47,6 +53,9 @@ interface FoodItem {
   quantity: number
   unit: string
   expiry_date: string
+  expiry_type?: ExpiryType
+  expiry_date_from?: string
+  expiry_date_to?: string
   status: string
   delivery_method?: string
   pickup_address?: string
@@ -83,7 +92,10 @@ export default function DonorDashboard() {
     category: "",
     quantity: "",
     unit: "",
+    expiry_type: "exact" as ExpiryType,
     expiry_date: "",
+    expiry_date_from: "",
+    expiry_date_to: "",
     delivery_method: "pickup",
     pickup_address: "",
     pickup_contact: "",
@@ -166,7 +178,10 @@ export default function DonorDashboard() {
       category: "",
       quantity: "",
       unit: "",
+      expiry_type: "exact",
       expiry_date: "",
+      expiry_date_from: "",
+      expiry_date_to: "",
       delivery_method: "pickup",
       pickup_address: "",
       pickup_contact: "",
@@ -181,7 +196,10 @@ export default function DonorDashboard() {
       category: item.category,
       quantity: item.quantity.toString(),
       unit: item.unit,
-      expiry_date: item.expiry_date,
+      expiry_type: item.expiry_type || "exact",
+      expiry_date: item.expiry_date || "",
+      expiry_date_from: item.expiry_date_from || "",
+      expiry_date_to: item.expiry_date_to || "",
       delivery_method: item.delivery_method || "pickup",
       pickup_address: item.pickup_address || "",
       pickup_contact: item.pickup_contact || "",
@@ -200,15 +218,34 @@ export default function DonorDashboard() {
     setShowPostConfirmation(false)
 
     try {
+      // Determine effective expiration date for db compatibility
+      const effectiveExpiry =
+        formData.expiry_type === "non_perishable"
+          ? "2099-12-31"
+          : formData.expiry_type === "range"
+          ? formData.expiry_date_from || formData.expiry_date_to || new Date().toISOString().split("T")[0]
+          : formData.expiry_date
+
       // Prepare the base item data
       const itemData: any = {
         title: formData.title,
-        description: formData.description || null, // Make description optional
+        description: formData.description || null,
         category: formData.category,
         quantity: Number.parseInt(formData.quantity),
         unit: formData.unit,
-        expiry_date: formData.expiry_date,
+        expiry_date: effectiveExpiry,
         updated_at: new Date().toISOString(),
+      }
+
+      // Try adding range fields if supported
+      try {
+        itemData.expiry_type = formData.expiry_type
+        if (formData.expiry_type === "range") {
+          itemData.expiry_date_from = formData.expiry_date_from
+          itemData.expiry_date_to = formData.expiry_date_to
+        }
+      } catch (e) {
+        // ignore
       }
 
       // Only add delivery-related fields if they're supported (to handle older database schemas)
@@ -725,15 +762,107 @@ export default function DonorDashboard() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="expiry_date">Expiry Date *</Label>
-                    <Input
-                      id="expiry_date"
-                      type="date"
-                      value={formData.expiry_date}
-                      onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                      required
-                    />
+                  {/* Expiration Type & Details */}
+                  <div className="space-y-2 col-span-2 p-3 bg-gray-50 border rounded-lg">
+                    <Label className="text-xs font-semibold text-gray-800 flex items-center justify-between">
+                      <span>Expiration Date Details *</span>
+                      <span className="text-[10px] text-gray-500 font-normal">
+                        Supports exact dates or mixed batch ranges
+                      </span>
+                    </Label>
+                    <div className="grid grid-cols-3 gap-1 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, expiry_type: "exact" })}
+                        className={`text-xs py-1.5 px-2 rounded border font-medium ${
+                          formData.expiry_type === "exact"
+                            ? "bg-white border-green-600 text-green-800 shadow-sm font-bold"
+                            : "bg-gray-100 text-gray-600 border-gray-200"
+                        }`}
+                      >
+                        Exact Date
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, expiry_type: "range" })}
+                        className={`text-xs py-1.5 px-2 rounded border font-medium ${
+                          formData.expiry_type === "range"
+                            ? "bg-white border-green-600 text-green-800 shadow-sm font-bold"
+                            : "bg-gray-100 text-gray-600 border-gray-200"
+                        }`}
+                      >
+                        Date Range (Batch)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, expiry_type: "non_perishable" })}
+                        className={`text-xs py-1.5 px-2 rounded border font-medium ${
+                          formData.expiry_type === "non_perishable"
+                            ? "bg-white border-green-600 text-green-800 shadow-sm font-bold"
+                            : "bg-gray-100 text-gray-600 border-gray-200"
+                        }`}
+                      >
+                        Non-Perishable
+                      </button>
+                    </div>
+
+                    {formData.expiry_type === "exact" && (
+                      <div className="pt-2">
+                        <Label htmlFor="expiry_date" className="text-xs text-gray-700">
+                          Expiry Date *
+                        </Label>
+                        <Input
+                          id="expiry_date"
+                          type="date"
+                          value={formData.expiry_date}
+                          onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                          required
+                          className="bg-white mt-1"
+                        />
+                      </div>
+                    )}
+
+                    {formData.expiry_type === "range" && (
+                      <div className="pt-2 space-y-1">
+                        <p className="text-[11px] text-gray-500">
+                          For donations with mixed expiration dates (e.g. assorted canned goods or biscuits):
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label htmlFor="range_from" className="text-[11px] text-gray-600">
+                              Earliest Expiry (From) *
+                            </Label>
+                            <Input
+                              id="range_from"
+                              type="date"
+                              value={formData.expiry_date_from}
+                              onChange={(e) => setFormData({ ...formData, expiry_date_from: e.target.value })}
+                              required
+                              className="bg-white mt-1 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="range_to" className="text-[11px] text-gray-600">
+                              Latest Expiry (To) *
+                            </Label>
+                            <Input
+                              id="range_to"
+                              type="date"
+                              value={formData.expiry_date_to}
+                              onChange={(e) => setFormData({ ...formData, expiry_date_to: e.target.value })}
+                              required
+                              className="bg-white mt-1 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.expiry_type === "non_perishable" && (
+                      <p className="text-xs text-emerald-700 bg-emerald-50 p-2 rounded mt-2">
+                        Items like salt, sugar, vinegar, or honey do not spoil quickly. They will be marked as non-perishable.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -837,7 +966,13 @@ export default function DonorDashboard() {
                   {formData.unit}
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
-                  <strong>Expires:</strong> {new Date(formData.expiry_date).toLocaleDateString()}
+                  <strong>Expiration:</strong>{" "}
+                  {formatExpiryDisplay({
+                    expiry_type: formData.expiry_type,
+                    expiry_date: formData.expiry_date,
+                    expiry_date_from: formData.expiry_date_from,
+                    expiry_date_to: formData.expiry_date_to,
+                  })}
                 </p>
                 <p className="text-sm text-gray-600">
                   <strong>Delivery:</strong> {formData.delivery_method === "pickup" ? "Pickup" : "Drop-off"}
@@ -933,8 +1068,32 @@ export default function DonorDashboard() {
                       <div>
                         <span className="font-medium">Quantity:</span> {item.quantity} {item.unit}
                       </div>
-                      <div>
-                        <span className="font-medium">Expires:</span> {new Date(item.expiry_date).toLocaleDateString()}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-medium">Expiration:</span>
+                        <span>
+                          {formatExpiryDisplay({
+                            expiry_type: item.expiry_type || "exact",
+                            expiry_date: item.expiry_date,
+                            expiry_date_from: item.expiry_date_from,
+                            expiry_date_to: item.expiry_date_to,
+                          })}
+                        </span>
+                        {(() => {
+                          const urgency = getFoodItemUrgency({
+                            expiry_type: item.expiry_type || "exact",
+                            expiry_date: item.expiry_date,
+                            expiry_date_from: item.expiry_date_from,
+                            expiry_date_to: item.expiry_date_to,
+                          })
+                          return (
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${urgency.badgeClass}`}
+                            >
+                              {urgency.level === "critical" && <Flame className="h-3 w-3 inline mr-0.5" />}
+                              {urgency.label}
+                            </span>
+                          )
+                        })()}
                       </div>
                       <div>
                         <span className="font-medium">Posted:</span> {new Date(item.created_at).toLocaleDateString()}

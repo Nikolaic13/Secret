@@ -45,6 +45,60 @@ export interface ClothingItem {
   notes?: string
 }
 
+export type FoodCategory =
+  | "grains"
+  | "canned_goods"
+  | "produce"
+  | "dairy"
+  | "baby_food"
+  | "beverages"
+  | "snacks"
+  | "condiments"
+  | "other"
+
+export type ExpiryType = "exact" | "range" | "non_perishable"
+export type ExpiryUrgencyLevel = "critical" | "high" | "medium" | "safe"
+
+export interface FoodInventoryItem {
+  id: string
+  barangay_name: string
+  item_name: string
+  category: FoodCategory
+  quantity: number
+  unit: "packs" | "kg" | "cans" | "boxes" | "baskets" | "sacks" | "tins" | "bottles" | "pieces"
+  expiry_type: ExpiryType
+  expiry_date?: string // Exact expiry date (YYYY-MM-DD)
+  expiry_date_from?: string // Range start (YYYY-MM-DD)
+  expiry_date_to?: string // Range end (YYYY-MM-DD)
+  condition?: "good" | "slightly_damaged_packaging"
+  storage_condition?: "ambient" | "chilled" | "dry_store"
+  notes?: string
+  created_at?: string
+}
+
+export interface FoodPackContent {
+  food_item_id: string
+  item_name: string
+  category: FoodCategory
+  quantity_per_pack: number
+  unit: string
+  expiry_type: ExpiryType
+  effective_expiry_date: string
+}
+
+export interface FoodPack {
+  id: string
+  barangay_name: string
+  pack_name: string
+  description?: string
+  target_beneficiary_type?: VulnerabilityCategory | "general_relief"
+  contents: FoodPackContent[]
+  quantity_available: number
+  earliest_expiry_date: string
+  urgency_level: ExpiryUrgencyLevel
+  created_at?: string
+}
+
 export interface DistributionRecord {
   id: string
   barangay_name: string
@@ -62,6 +116,152 @@ export interface DistributionRecord {
   distributor_name: string
   notes?: string
   created_at?: string
+}
+
+export function getEffectiveExpiryDate(item: {
+  expiry_type: ExpiryType
+  expiry_date?: string
+  expiry_date_from?: string
+  expiry_date_to?: string
+}): string | null {
+  if (item.expiry_type === "non_perishable") return null
+  if (item.expiry_type === "exact") return item.expiry_date || null
+  // In a range of expiration dates, the earliest date in the batch is when the first items expire!
+  // However, FEFO urgency checks the soonest date (expiry_date_from) or end date (expiry_date_to).
+  // We use expiry_date_from as the trigger for urgent dispatch of the batch.
+  return item.expiry_date_from || item.expiry_date_to || null
+}
+
+export function getFoodItemUrgency(item: {
+  expiry_type: ExpiryType
+  expiry_date?: string
+  expiry_date_from?: string
+  expiry_date_to?: string
+}): {
+  level: ExpiryUrgencyLevel
+  daysLeft: number
+  label: string
+  badgeVariant: "destructive" | "default" | "secondary" | "outline"
+  badgeClass: string
+  isExpiringSoon: boolean
+} {
+  if (item.expiry_type === "non_perishable") {
+    return {
+      level: "safe",
+      daysLeft: 9999,
+      label: "Non-Perishable (Safe)",
+      badgeVariant: "outline",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-300",
+      isExpiringSoon: false,
+    }
+  }
+
+  const effectiveDateStr = getEffectiveExpiryDate(item)
+  if (!effectiveDateStr) {
+    return {
+      level: "safe",
+      daysLeft: 9999,
+      label: "No Expiry Specified",
+      badgeVariant: "outline",
+      badgeClass: "bg-gray-100 text-gray-700 border-gray-300",
+      isExpiringSoon: false,
+    }
+  }
+
+  const expiryDate = new Date(effectiveDateStr)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diffTime = expiryDate.getTime() - today.getTime()
+  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  if (daysLeft < 0) {
+    return {
+      level: "critical",
+      daysLeft,
+      label: `EXPIRED (${Math.abs(daysLeft)}d ago)`,
+      badgeVariant: "destructive",
+      badgeClass: "bg-red-600 text-white font-bold animate-pulse",
+      isExpiringSoon: true,
+    }
+  }
+
+  if (daysLeft <= 7) {
+    return {
+      level: "critical",
+      daysLeft,
+      label: `CRITICAL (${daysLeft}d left)`,
+      badgeVariant: "destructive",
+      badgeClass: "bg-rose-500 text-white font-semibold",
+      isExpiringSoon: true,
+    }
+  }
+
+  if (daysLeft <= 30) {
+    return {
+      level: "high",
+      daysLeft,
+      label: `High Urgency (${daysLeft}d left)`,
+      badgeVariant: "default",
+      badgeClass: "bg-amber-500 text-white font-medium",
+      isExpiringSoon: true,
+    }
+  }
+
+  if (daysLeft <= 90) {
+    return {
+      level: "medium",
+      daysLeft,
+      label: `Moderate (${daysLeft}d left)`,
+      badgeVariant: "secondary",
+      badgeClass: "bg-yellow-100 text-yellow-800 border-yellow-300",
+      isExpiringSoon: false,
+    }
+  }
+
+  return {
+    level: "safe",
+    daysLeft,
+    label: `Good (${daysLeft}d left)`,
+    badgeVariant: "outline",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-300",
+    isExpiringSoon: false,
+  }
+}
+
+export function formatExpiryDisplay(item: {
+  expiry_type: ExpiryType
+  expiry_date?: string
+  expiry_date_from?: string
+  expiry_date_to?: string
+}): string {
+  if (item.expiry_type === "non_perishable") {
+    return "Non-perishable (Long shelf life)"
+  }
+  if (item.expiry_type === "exact" && item.expiry_date) {
+    return `Expires: ${new Date(item.expiry_date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`
+  }
+  if (item.expiry_type === "range") {
+    const fromStr = item.expiry_date_from
+      ? new Date(item.expiry_date_from).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "Unknown"
+    const toStr = item.expiry_date_to
+      ? new Date(item.expiry_date_to).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "Unknown"
+    return `Batch Range: ${fromStr} – ${toStr}`
+  }
+  return "Standard Shelf Life"
 }
 
 export function getAgeCategory(age: number): AgeGroup {
@@ -370,6 +570,196 @@ const DEFAULT_DISTRIBUTIONS: DistributionRecord[] = [
 const BENEFICIARIES_KEY = "foodshare_beneficiaries"
 const CLOTHING_KEY = "foodshare_clothing_inventory"
 const DISTRIBUTIONS_KEY = "foodshare_aid_distributions"
+const FOOD_INVENTORY_KEY = "foodshare_food_inventory"
+const FOOD_PACKS_KEY = "foodshare_food_packs"
+
+// Default Food Inventory Seed Data (Rich real-world scenario with mixed batches and ranges)
+export const DEFAULT_FOOD_INVENTORY: FoodInventoryItem[] = [
+  {
+    id: "food-001",
+    barangay_name: "Abangay",
+    item_name: "Assorted Canned Tuna in Vegetable Oil",
+    category: "canned_goods",
+    quantity: 120,
+    unit: "cans",
+    expiry_type: "range",
+    expiry_date_from: "2026-10-15",
+    expiry_date_to: "2026-10-28",
+    condition: "good",
+    storage_condition: "ambient",
+    notes: "Mixed donor batch from local supermarket drive. Earliest tins expire in mid-October.",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-002",
+    barangay_name: "Abangay",
+    item_name: "High-Protein Infant Cerelac & Soya",
+    category: "baby_food",
+    quantity: 45,
+    unit: "boxes",
+    expiry_type: "exact",
+    expiry_date: "2026-10-18",
+    condition: "good",
+    storage_condition: "dry_store",
+    notes: "Critical priority for identified underweight infants in Purok 4.",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-003",
+    barangay_name: "Abangay",
+    item_name: "Maternal Calcium Milk Powder Formula",
+    category: "dairy",
+    quantity: 35,
+    unit: "tins",
+    expiry_type: "exact",
+    expiry_date: "2026-11-12",
+    condition: "good",
+    storage_condition: "dry_store",
+    notes: "High urgency nutritional support for pregnant and lactating mothers.",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-004",
+    barangay_name: "Abangay",
+    item_name: "Fortified White Rice (50kg Sacks)",
+    category: "grains",
+    quantity: 30,
+    unit: "sacks",
+    expiry_type: "range",
+    expiry_date_from: "2027-03-01",
+    expiry_date_to: "2027-05-30",
+    condition: "good",
+    storage_condition: "dry_store",
+    notes: "Standard municipal disaster reserve grain stock. Safe shelf life.",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-005",
+    barangay_name: "Abangay",
+    item_name: "Canned Sardines in Tomato Chili Sauce",
+    category: "canned_goods",
+    quantity: 200,
+    unit: "cans",
+    expiry_type: "range",
+    expiry_date_from: "2026-12-10",
+    expiry_date_to: "2027-02-15",
+    condition: "good",
+    storage_condition: "ambient",
+    notes: "Donated bulk crate with mixed manufacturing dates.",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-006",
+    barangay_name: "Abangay",
+    item_name: "Fresh Harvest Highland Squash & Tubers",
+    category: "produce",
+    quantity: 60,
+    unit: "kg",
+    expiry_type: "exact",
+    expiry_date: "2026-10-09",
+    condition: "good",
+    storage_condition: "chilled",
+    notes: "Fresh produce from farmers guild. Must distribute within 7 days!",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-007",
+    barangay_name: "Abangay",
+    item_name: "Iodized Table Salt & Brown Sugar",
+    category: "condiments",
+    quantity: 80,
+    unit: "packs",
+    expiry_type: "non_perishable",
+    condition: "good",
+    storage_condition: "dry_store",
+    notes: "Non-perishable relief pack basic staple.",
+    created_at: new Date().toISOString(),
+  },
+]
+
+// Default Food Packs Seed Data
+export const DEFAULT_FOOD_PACKS: FoodPack[] = [
+  {
+    id: "pack-001",
+    barangay_name: "Abangay",
+    pack_name: "Family Standard Emergency Food Pack",
+    description: "Complete 3-5 day subsistence ration for family of 4-6 members.",
+    target_beneficiary_type: "low_income",
+    contents: [
+      {
+        food_item_id: "food-004",
+        item_name: "Fortified White Rice",
+        category: "grains",
+        quantity_per_pack: 5,
+        unit: "kg",
+        expiry_type: "range",
+        effective_expiry_date: "2027-03-01",
+      },
+      {
+        food_item_id: "food-005",
+        item_name: "Canned Sardines in Tomato Chili Sauce",
+        category: "canned_goods",
+        quantity_per_pack: 4,
+        unit: "cans",
+        expiry_type: "range",
+        effective_expiry_date: "2026-12-10",
+      },
+      {
+        food_item_id: "food-001",
+        item_name: "Assorted Canned Tuna in Vegetable Oil",
+        category: "canned_goods",
+        quantity_per_pack: 3,
+        unit: "cans",
+        expiry_type: "range",
+        effective_expiry_date: "2026-10-15",
+      },
+      {
+        food_item_id: "food-007",
+        item_name: "Iodized Table Salt & Brown Sugar",
+        category: "condiments",
+        quantity_per_pack: 1,
+        unit: "pack",
+        expiry_type: "non_perishable",
+        effective_expiry_date: "2099-01-01",
+      },
+    ],
+    quantity_available: 24,
+    earliest_expiry_date: "2026-10-15",
+    urgency_level: "critical",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "pack-002",
+    barangay_name: "Abangay",
+    pack_name: "First 1,000 Days Maternal & Infant Care Pack",
+    description: "Tailored nutrient-dense kit for pregnant mothers and toddlers.",
+    target_beneficiary_type: "infant_care",
+    contents: [
+      {
+        food_item_id: "food-002",
+        item_name: "High-Protein Infant Cerelac & Soya",
+        category: "baby_food",
+        quantity_per_pack: 2,
+        unit: "boxes",
+        expiry_type: "exact",
+        effective_expiry_date: "2026-10-18",
+      },
+      {
+        food_item_id: "food-003",
+        item_name: "Maternal Calcium Milk Powder Formula",
+        category: "dairy",
+        quantity_per_pack: 1,
+        unit: "tin",
+        expiry_type: "exact",
+        effective_expiry_date: "2026-11-12",
+      },
+    ],
+    quantity_available: 15,
+    earliest_expiry_date: "2026-10-18",
+    urgency_level: "critical",
+    created_at: new Date().toISOString(),
+  },
+]
 
 function getFromStorage<T>(key: string, fallback: T[]): T[] {
   if (typeof window === "undefined") return fallback
@@ -537,5 +927,220 @@ export async function recordDistribution(
     saveToStorage(CLOTHING_KEY, updatedClothes)
   }
 
+  // Deduct food item stock if food
+  if (distribution.item_type === "food") {
+    const foodList = getFromStorage<FoodInventoryItem>(FOOD_INVENTORY_KEY, DEFAULT_FOOD_INVENTORY)
+    const updatedFood = foodList.map((f) => {
+      if (f.item_name.toLowerCase() === distribution.item_name.toLowerCase()) {
+        return { ...f, quantity: Math.max(0, f.quantity - distribution.quantity) }
+      }
+      return f
+    })
+    saveToStorage(FOOD_INVENTORY_KEY, updatedFood)
+  }
+
+  // Deduct food pack stock if relief_pack
+  if (distribution.item_type === "relief_pack") {
+    const packs = getFromStorage<FoodPack>(FOOD_PACKS_KEY, DEFAULT_FOOD_PACKS)
+    const updatedPacks = packs.map((p) => {
+      if (p.pack_name.toLowerCase() === distribution.item_name.toLowerCase()) {
+        return { ...p, quantity_available: Math.max(0, p.quantity_available - distribution.quantity) }
+      }
+      return p
+    })
+    saveToStorage(FOOD_PACKS_KEY, updatedPacks)
+  }
+
   return newRecord
 }
+
+// 4. Food Inventory API
+export async function getFoodInventory(barangayName?: string): Promise<FoodInventoryItem[]> {
+  try {
+    const supabase = createClient()
+    let query = supabase.from("food_inventory").select("*")
+    if (barangayName) {
+      query = query.eq("barangay_name", barangayName)
+    }
+    const { data, error } = await query
+    if (error || !data || data.length === 0) {
+      const stored = getFromStorage<FoodInventoryItem>(FOOD_INVENTORY_KEY, DEFAULT_FOOD_INVENTORY)
+      return barangayName ? stored.filter((f) => !f.barangay_name || f.barangay_name === barangayName) : stored
+    }
+    return data as FoodInventoryItem[]
+  } catch {
+    const stored = getFromStorage<FoodInventoryItem>(FOOD_INVENTORY_KEY, DEFAULT_FOOD_INVENTORY)
+    return barangayName ? stored.filter((f) => !f.barangay_name || f.barangay_name === barangayName) : stored
+  }
+}
+
+export async function addFoodInventoryItem(
+  item: Omit<FoodInventoryItem, "id">
+): Promise<FoodInventoryItem> {
+  const newItem: FoodInventoryItem = {
+    ...item,
+    id: `food-${Date.now()}`,
+    created_at: new Date().toISOString(),
+  }
+
+  try {
+    const supabase = createClient()
+    const { data, error } = await supabase.from("food_inventory").insert([newItem]).select().single()
+    if (!error && data) {
+      return data as FoodInventoryItem
+    }
+  } catch (e) {
+    console.warn("Falling back to local storage for addFoodInventoryItem", e)
+  }
+
+  const all = getFromStorage<FoodInventoryItem>(FOOD_INVENTORY_KEY, DEFAULT_FOOD_INVENTORY)
+  const updated = [newItem, ...all]
+  saveToStorage(FOOD_INVENTORY_KEY, updated)
+  return newItem
+}
+
+export async function updateFoodInventoryItem(
+  id: string,
+  updates: Partial<FoodInventoryItem>
+): Promise<void> {
+  try {
+    const supabase = createClient()
+    await supabase.from("food_inventory").update(updates).eq("id", id)
+  } catch (e) {
+    console.warn("Supabase update error, updating local storage", e)
+  }
+
+  const all = getFromStorage<FoodInventoryItem>(FOOD_INVENTORY_KEY, DEFAULT_FOOD_INVENTORY)
+  const updated = all.map((f) => (f.id === id ? { ...f, ...updates } : f))
+  saveToStorage(FOOD_INVENTORY_KEY, updated)
+}
+
+export async function deleteFoodInventoryItem(id: string): Promise<void> {
+  try {
+    const supabase = createClient()
+    await supabase.from("food_inventory").delete().eq("id", id)
+  } catch (e) {
+    console.warn("Supabase delete error, deleting from local storage", e)
+  }
+
+  const all = getFromStorage<FoodInventoryItem>(FOOD_INVENTORY_KEY, DEFAULT_FOOD_INVENTORY)
+  const updated = all.filter((f) => f.id !== id)
+  saveToStorage(FOOD_INVENTORY_KEY, updated)
+}
+
+// 5. Food Packs API (Assemble, Manage, Deduct)
+export async function getFoodPacks(barangayName?: string): Promise<FoodPack[]> {
+  try {
+    const supabase = createClient()
+    let query = supabase.from("food_packs").select("*")
+    if (barangayName) {
+      query = query.eq("barangay_name", barangayName)
+    }
+    const { data, error } = await query
+    if (error || !data || data.length === 0) {
+      const stored = getFromStorage<FoodPack>(FOOD_PACKS_KEY, DEFAULT_FOOD_PACKS)
+      return barangayName ? stored.filter((p) => !p.barangay_name || p.barangay_name === barangayName) : stored
+    }
+    return data as FoodPack[]
+  } catch {
+    const stored = getFromStorage<FoodPack>(FOOD_PACKS_KEY, DEFAULT_FOOD_PACKS)
+    return barangayName ? stored.filter((p) => !p.barangay_name || p.barangay_name === barangayName) : stored
+  }
+}
+
+export async function createFoodPack(packData: {
+  barangay_name: string
+  pack_name: string
+  description?: string
+  target_beneficiary_type?: VulnerabilityCategory | "general_relief"
+  contents: {
+    food_item_id: string
+    quantity_per_pack: number
+  }[]
+  packs_to_create: number
+}): Promise<FoodPack> {
+  // 1. Fetch current food inventory
+  const inventory = getFromStorage<FoodInventoryItem>(FOOD_INVENTORY_KEY, DEFAULT_FOOD_INVENTORY)
+
+  // 2. Validate sufficient inventory
+  for (const c of packData.contents) {
+    const invItem = inventory.find((i) => i.id === c.food_item_id)
+    if (!invItem) {
+      throw new Error(`Inventory item not found for ID ${c.food_item_id}`)
+    }
+    const totalNeeded = c.quantity_per_pack * packData.packs_to_create
+    if (invItem.quantity < totalNeeded) {
+      throw new Error(
+        `Insufficient stock for "${invItem.item_name}". Required: ${totalNeeded} ${invItem.unit}, Available: ${invItem.quantity} ${invItem.unit}`
+      )
+    }
+  }
+
+  // 3. Deduct stock from inventory
+  const updatedInventory = inventory.map((invItem) => {
+    const c = packData.contents.find((ci) => ci.food_item_id === invItem.id)
+    if (c) {
+      const deduction = c.quantity_per_pack * packData.packs_to_create
+      return { ...invItem, quantity: invItem.quantity - deduction }
+    }
+    return invItem
+  })
+  saveToStorage(FOOD_INVENTORY_KEY, updatedInventory)
+
+  // 4. Construct detailed contents & find earliest expiry date among contents
+  let earliestDate: string | null = null
+  const detailedContents: FoodPackContent[] = packData.contents.map((c) => {
+    const invItem = inventory.find((i) => i.id === c.food_item_id)!
+    const effDate = getEffectiveExpiryDate(invItem) || "2099-12-31"
+
+    if (!earliestDate || new Date(effDate) < new Date(earliestDate)) {
+      earliestDate = effDate
+    }
+
+    return {
+      food_item_id: invItem.id,
+      item_name: invItem.item_name,
+      category: invItem.category,
+      quantity_per_pack: c.quantity_per_pack,
+      unit: invItem.unit,
+      expiry_type: invItem.expiry_type,
+      effective_expiry_date: effDate,
+    }
+  })
+
+  const finalEarliestExpiry = earliestDate || new Date(Date.now() + 90 * 86400000).toISOString().split("T")[0]
+  const urgency = getFoodItemUrgency({
+    expiry_type: "exact",
+    expiry_date: finalEarliestExpiry,
+  }).level
+
+  const newPack: FoodPack = {
+    id: `pack-${Date.now()}`,
+    barangay_name: packData.barangay_name,
+    pack_name: packData.pack_name,
+    description: packData.description,
+    target_beneficiary_type: packData.target_beneficiary_type,
+    contents: detailedContents,
+    quantity_available: packData.packs_to_create,
+    earliest_expiry_date: finalEarliestExpiry,
+    urgency_level: urgency,
+    created_at: new Date().toISOString(),
+  }
+
+  try {
+    const supabase = createClient()
+    const { data, error } = await supabase.from("food_packs").insert([newPack]).select().single()
+    if (!error && data) {
+      return data as FoodPack
+    }
+  } catch (e) {
+    console.warn("Falling back to local storage for createFoodPack", e)
+  }
+
+  const existingPacks = getFromStorage<FoodPack>(FOOD_PACKS_KEY, DEFAULT_FOOD_PACKS)
+  const updatedPacks = [newPack, ...existingPacks]
+  saveToStorage(FOOD_PACKS_KEY, updatedPacks)
+
+  return newPack
+}
+
