@@ -16,3 +16,7 @@
 - [x] Donator dashboard must have sidebar
 - [x] Make sidebar collapsible and remove unnecessary colored icons
 - [x] Improvements for Donor dashboard
+
+### UI Overhaul
+- [x] completely revamp the landing page design to be more professional, clean, and modern
+- [ ] improve UI/UX of the landing page and app itself. document each UI/UX design patterns into /docs/DESIGN.md for reference
