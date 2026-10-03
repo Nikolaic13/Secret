@@ -48,19 +48,19 @@ export function BarangayLayoutClient({ children }: { children: React.ReactNode }
     {
       id: "beneficiaries",
       label: "Beneficiaries & Urgent",
-      icon: <Flame className="h-4 w-4 text-red-400" />,
+      icon: <Flame className="h-4 w-4" />,
       href: "/dashboard/barangay/beneficiaries",
     },
     {
       id: "inventory",
       label: "Food & Pack Inventory",
-      icon: <Boxes className="h-4 w-4 text-amber-500" />,
+      icon: <Boxes className="h-4 w-4" />,
       href: "/dashboard/barangay/inventory",
     },
     {
       id: "distribution",
       label: "Aid Distribution",
-      icon: <HeartHandshake className="h-4 w-4 text-emerald-400" />,
+      icon: <HeartHandshake className="h-4 w-4" />,
       href: "/dashboard/barangay/distribution",
     },
     {

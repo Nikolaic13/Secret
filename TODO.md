@@ -15,4 +15,4 @@
 ### UI
 - [x] Donator dashboard must have sidebar
 - [x] Make sidebar collapsible and remove unnecessary colored icons
-- [ ] Improvements for Donor dashboard
+- [x] Improvements for Donor dashboard
