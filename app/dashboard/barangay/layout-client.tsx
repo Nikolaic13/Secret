@@ -2,10 +2,9 @@
 
 import React from "react"
 import { useBarangay } from "./context"
-import { Heart, Bell, LogOut, Users, Package, AlertTriangle, HeartHandshake, Flame, Boxes } from "lucide-react"
+import { Users, Package, AlertTriangle, HeartHandshake, Flame, Boxes, RotateCw, Landmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Sidebar } from "@/components/layout/sidebar"
-
+import { Sidebar, SidebarItem } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 
 export function BarangayLayoutClient({ children }: { children: React.ReactNode }) {
@@ -13,10 +12,13 @@ export function BarangayLayoutClient({ children }: { children: React.ReactNode }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Bell className="h-8 w-8 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading barangay dashboard...</p>
+      <div className="min-h-screen bg-muted/20 flex items-center justify-center">
+        <div className="text-center p-8 rounded-2xl bg-card border border-border shadow-xs max-w-sm w-full mx-4">
+          <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto mb-4 animate-bounce">
+            <Landmark className="h-6 w-6" />
+          </div>
+          <h3 className="font-semibold text-foreground mb-1">Barangay Portal</h3>
+          <p className="text-sm text-muted-foreground">Loading barangay records and aid requests...</p>
         </div>
       </div>
     )
@@ -24,21 +26,26 @@ export function BarangayLayoutClient({ children }: { children: React.ReactNode }
 
   if (fetchError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <AlertTriangle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Dashboard Error</h2>
-          <p className="text-gray-600 mb-4">{fetchError}</p>
-          <Button onClick={() => window.location.reload()} className="bg-green-600 hover:bg-green-700">
-            <Bell className="h-4 w-4 mr-2" />
-            Retry
+      <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
+        <div className="text-center max-w-md p-8 rounded-2xl bg-card border border-destructive/20 shadow-sm">
+          <div className="h-12 w-12 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground mb-1">Dashboard Error</h2>
+          <p className="text-xs text-muted-foreground mb-6 leading-relaxed">{fetchError}</p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs h-9 px-4 font-medium"
+          >
+            <RotateCw className="h-3.5 w-3.5 mr-2" />
+            Reload Portal
           </Button>
         </div>
       </div>
     )
   }
 
-  const sidebarItems = [
+  const sidebarItems: SidebarItem[] = [
     {
       id: "demographics",
       label: "Demographics",
@@ -78,25 +85,23 @@ export function BarangayLayoutClient({ children }: { children: React.ReactNode }
   ]
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
-      {/* Sidebar on absolute left */}
-      <Sidebar items={sidebarItems} />
-      
+    <div className="h-screen bg-muted/20 flex overflow-hidden">
+      {/* Collapsible Sidebar */}
+      <Sidebar items={sidebarItems} title="Barangay Portal" collapsible={true} />
+
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header */}
-        <Header 
+        <Header
           userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
-          subtitle={profile?.barangay}
+          subtitle={profile?.barangay ? `Brgy. ${profile.barangay}` : "Barangay Official"}
           onRefresh={fetchAllData}
           onLogout={handleLogout}
         />
-        
+
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="container mx-auto max-w-5xl">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="container mx-auto max-w-6xl">{children}</div>
         </main>
       </div>
     </div>

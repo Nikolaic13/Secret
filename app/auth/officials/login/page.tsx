@@ -93,116 +93,126 @@ export default function OfficialLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Heart className="h-10 w-10 text-green-600" />
-            <h1 className="text-3xl font-bold text-green-800">FoodShare Janiuay</h1>
-          </div>
-          <p className="text-gray-600">Official Representative Portal</p>
+        <div className="text-center space-y-2">
+          <Link href="/" className="inline-flex items-center gap-2.5 group">
+            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
+              <Heart className="h-6 w-6 text-white fill-white/20" />
+            </div>
+            <div className="text-left">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">FoodShare</h1>
+              <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                Official Representative Portal
+              </p>
+            </div>
+          </Link>
+          <p className="text-xs text-muted-foreground pt-1">
+            Authorized municipal and barangay official login
+          </p>
         </div>
 
         {/* Access Level Information */}
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <Building className="h-5 w-5 text-blue-600" />
-            <div>
-              <p className="font-medium text-blue-800">Municipal Representatives</p>
-              <p className="text-sm text-blue-600">Manage food storage, allocation, and MCDA recommendations</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col p-3 bg-card border border-blue-500/20 rounded-2xl text-xs space-y-1">
+            <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-semibold">
+              <Building className="h-4 w-4" />
+              <span>Municipal</span>
             </div>
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              Storage, allocations, and MCDA distribution
+            </p>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <Users className="h-5 w-5 text-green-600" />
-            <div>
-              <p className="font-medium text-green-800">Barangay Representatives</p>
-              <p className="text-sm text-green-600">View allocations and manage food distribution</p>
+          <div className="flex flex-col p-3 bg-card border border-emerald-500/20 rounded-2xl text-xs space-y-1">
+            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <Users className="h-4 w-4" />
+              <span>Barangay</span>
             </div>
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              Aid requests and beneficiary distribution
+            </p>
           </div>
         </div>
 
         {/* Login Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-green-600" />
-              Official Access Login
-            </CardTitle>
-            <CardDescription>Enter your official representative credentials to access the system</CardDescription>
+        <Card className="rounded-2xl border-border/60 shadow-xs">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-lg font-bold text-foreground">Representative Sign In</CardTitle>
+            <CardDescription className="text-xs">
+              Enter your official email and credentials to access your dashboard
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Official Email Address</Label>
+              {error && (
+                <Alert variant="destructive" className="rounded-xl py-2.5 text-xs">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-medium">Official Email Address</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@janiuay.gov.ph"
+                  placeholder="official@janiuay.gov.ph"
                   required
-                  className="mt-1"
+                  className="h-10 text-xs rounded-xl border-border/60 bg-background"
+                  disabled={loading}
                 />
               </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-xs font-medium">Password</Label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="••••••••"
                   required
-                  className="mt-1"
+                  className="h-10 text-xs rounded-xl border-border/60 bg-background"
+                  disabled={loading}
                 />
               </div>
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing In..." : "Sign In"}
+              <Button
+                type="submit"
+                className="w-full h-10 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs transition-all"
+                disabled={loading}
+              >
+                {loading ? "Signing in..." : "Sign In to Official Portal"}
               </Button>
             </form>
 
             {/* Sign Up Link */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600 mb-3">Don't have an account yet?</p>
-              <Link href="/auth/officials/register">
-                <Button variant="outline" className="w-full bg-transparent">
-                  <UserPlus className="h-4 w-4 mr-2" />
+            <div className="mt-5 pt-4 border-t border-border/50 text-center space-y-2 text-xs">
+              <p className="text-muted-foreground">Don't have an official account?</p>
+              <Link href="/auth/officials/register" className="block">
+                <Button variant="outline" className="w-full h-9 rounded-xl text-xs border-border/80 hover:bg-accent">
+                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
                   Register as Representative
                 </Button>
               </Link>
             </div>
 
-            {/* Access Information */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-gray-800 mb-2">Registration Requirements</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Must be an official representative of Janiuay municipality or barangay</li>
-                <li>• Valid government email address required</li>
-                <li>• Account approval may be required by administrators</li>
-              </ul>
+            {/* Access Information note */}
+            <div className="mt-4 p-3 bg-muted/50 rounded-xl text-[11px] text-muted-foreground space-y-1">
+              <p className="font-semibold text-foreground">Official Access Requirements</p>
+              <p>• Must be an authorized representative of Janiuay municipality or barangay</p>
+              <p>• Requires admin approval before access is granted</p>
             </div>
           </CardContent>
         </Card>
 
         {/* Back Button */}
-        <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+        <div className="text-center">
+          <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             ← Back to Home
           </Link>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-500">FoodShare Janiuay - Official Representative Portal</p>
-          <p className="text-xs text-gray-400 mt-1">Authorized personnel only</p>
         </div>
       </div>
     </div>

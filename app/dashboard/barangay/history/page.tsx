@@ -113,13 +113,10 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
               Food Supply Request Tracker
             </h1>
-            <Badge variant="outline" className="text-xs bg-white text-gray-700">
-              Brgy. {barangayName}
-            </Badge>
           </div>
           <p className="text-sm text-gray-500 mt-1">
             Monitor the status, municipal review stages, and fulfillment timelines of your food relief requests.

@@ -19,4 +19,5 @@
 
 ### UI Overhaul
 - [x] completely revamp the landing page design to be more professional, clean, and modern
-- [ ] improve UI/UX of the landing page and app itself. document each UI/UX design patterns into /docs/DESIGN.md for reference
+- [x] improve UI/UX of the app itself (dashboards, auth, etc.)
+- [x] document each UI/UX design patterns into /docs/DESIGN.md for reference

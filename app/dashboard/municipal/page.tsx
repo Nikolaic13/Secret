@@ -1081,10 +1081,13 @@ export default function MunicipalDashboard() {
   // Show loading state
   if (dataLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading municipal dashboard...</p>
+      <div className="min-h-screen bg-muted/20 flex items-center justify-center">
+        <div className="text-center p-8 rounded-2xl bg-card border border-border shadow-xs max-w-sm w-full mx-4">
+          <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto mb-4 animate-bounce">
+            <Warehouse className="h-6 w-6" />
+          </div>
+          <h3 className="font-semibold text-foreground mb-1">Municipal MSWDO</h3>
+          <p className="text-sm text-muted-foreground">Loading municipal food stocks and distribution...</p>
         </div>
       </div>
     )
@@ -1093,14 +1096,19 @@ export default function MunicipalDashboard() {
   // Show error state
   if (fetchError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Dashboard Error</h2>
-          <p className="text-gray-600 mb-4">{fetchError}</p>
-          <Button onClick={() => window.location.reload()} className="bg-green-600 hover:bg-green-700">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+      <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
+        <div className="text-center max-w-md p-8 rounded-2xl bg-card border border-destructive/20 shadow-sm">
+          <div className="h-12 w-12 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="h-6 w-6" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground mb-1">Dashboard Error</h2>
+          <p className="text-xs text-muted-foreground mb-6 leading-relaxed">{fetchError}</p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs h-9 px-4 font-medium"
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-2" />
+            Reload Portal
           </Button>
         </div>
       </div>
@@ -1146,8 +1154,8 @@ export default function MunicipalDashboard() {
   ]
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
-      <Sidebar items={sidebarItems} />
+    <div className="h-screen bg-muted/20 flex overflow-hidden">
+      <Sidebar items={sidebarItems} title="Municipal MSWDO" collapsible={true} />
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header

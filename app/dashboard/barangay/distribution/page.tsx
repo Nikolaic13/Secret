@@ -307,13 +307,10 @@ export default function DistributionPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
               Aid Distribution Center
             </h1>
-            <Badge variant="outline" className="text-xs bg-white text-gray-700">
-              Brgy. {barangayName}
-            </Badge>
           </div>
           <p className="text-sm text-gray-500 mt-1">
             Dispatch food relief packs and age-matched clothing supplies directly to registered beneficiaries.

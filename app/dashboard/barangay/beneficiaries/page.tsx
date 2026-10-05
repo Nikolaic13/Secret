@@ -207,13 +207,10 @@ export default function BeneficiariesPage() {
       {/* Top Banner & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
               Barangay Beneficiary Registry
             </h1>
-            <Badge variant="outline" className="text-xs bg-white text-gray-700">
-              Brgy. {barangayName}
-            </Badge>
           </div>
           <p className="text-sm text-gray-500 mt-1">
             Manage registered households, prioritize urgent aid recipients, and direct age-based distributions.

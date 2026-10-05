@@ -1,11 +1,33 @@
 "use client"
-import { useState, useEffect } from "react"
+
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Shield, Package, TrendingUp, LogOut, User, CheckCircle, XCircle, Clock, Users, UserCheck } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Shield,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Users,
+  UserCheck,
+  Search,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Building,
+  UserX,
+  Filter,
+} from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { toast } from "sonner"
+import { Sidebar, SidebarItem } from "@/components/layout/sidebar"
+import { Header } from "@/components/layout/header"
 
 interface Profile {
   id: string
@@ -31,7 +53,11 @@ export default function AdminDashboard() {
   const [pendingProfiles, setPendingProfiles] = useState<Profile[]>([])
   const [allProfiles, setAllProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [roleFilter, setRoleFilter] = useState<string>("all")
+
   const router = useRouter()
   const supabase = createClient()
 
@@ -51,7 +77,7 @@ export default function AdminDashboard() {
       const parsedSession = JSON.parse(session)
       setProfile(parsedSession)
     } catch (error) {
-      console.error("[v0] Error parsing admin session:", error)
+      console.error("[FoodShare] Error parsing admin session:", error)
       router.push("/auth/admin/login")
     }
   }
@@ -59,8 +85,6 @@ export default function AdminDashboard() {
   const fetchProfiles = async () => {
     setLoading(true)
     try {
-      console.log("[v0] Fetching profiles from database...")
-
       // Fetch pending profiles
       const { data: pendingData, error: pendingError } = await supabase
         .from("profiles")
@@ -69,9 +93,9 @@ export default function AdminDashboard() {
         .order("created_at", { ascending: false })
 
       if (pendingError) {
-        console.error("[v0] Error fetching pending profiles:", pendingError)
+        console.error("[FoodShare] Error fetching pending profiles:", pendingError)
+        toast.error("Failed to fetch pending profiles")
       } else {
-        console.log(`[v0] Fetched ${pendingData?.length || 0} pending profiles`)
         setPendingProfiles(pendingData || [])
       }
 
@@ -82,296 +106,485 @@ export default function AdminDashboard() {
         .order("created_at", { ascending: false })
 
       if (allError) {
-        console.error("[v0] Error fetching all profiles:", allError)
+        console.error("[FoodShare] Error fetching all profiles:", allError)
+        toast.error("Failed to fetch all profiles")
       } else {
-        console.log(`[v0] Fetched ${allData?.length || 0} total profiles`)
         setAllProfiles(allData || [])
       }
     } catch (error) {
-      console.error("[v0] Exception while fetching profiles:", error)
+      console.error("[FoodShare] Exception while fetching profiles:", error)
+      toast.error("An unexpected error occurred while loading data")
     } finally {
       setLoading(false)
     }
   }
 
   const handleApproval = async (profileId: string, action: "approved" | "rejected") => {
+    setActionLoadingId(profileId)
     try {
-      console.log(`[v0] ${action === "approved" ? "Approving" : "Rejecting"} profile ${profileId}`)
-
-      const { error } = await supabase.from("profiles").update({ approval_status: action }).eq("id", profileId)
+      const { error } = await supabase
+        .from("profiles")
+        .update({ approval_status: action })
+        .eq("id", profileId)
 
       if (error) {
-        console.error("[v0] Error updating profile:", error)
-        alert(`Failed to ${action === "approved" ? "approve" : "reject"} user`)
+        console.error("[FoodShare] Error updating profile:", error)
+        toast.error(`Failed to ${action === "approved" ? "approve" : "reject"} user account`)
         return
       }
 
-      console.log(`[v0] Successfully ${action} profile`)
-      alert(`User ${action} successfully!`)
-      fetchProfiles() // Refresh the list
+      toast.success(
+        `User account ${action === "approved" ? "approved" : "rejected"} successfully!`
+      )
+      fetchProfiles()
     } catch (error) {
-      console.error("[v0] Exception during approval:", error)
-      alert("An error occurred")
+      console.error("[FoodShare] Exception during approval:", error)
+      toast.error("An unexpected error occurred")
+    } finally {
+      setActionLoadingId(null)
     }
   }
 
   const handleLogout = () => {
     localStorage.removeItem("admin_session")
+    toast.info("Logged out successfully")
     router.push("/")
   }
 
-  const getStatusColor = (status: string) => {
+  const stats = useMemo(
+    () => ({
+      pending: pendingProfiles.length,
+      approved: allProfiles.filter((p) => p.approval_status === "approved").length,
+      rejected: allProfiles.filter((p) => p.approval_status === "rejected").length,
+      total: allProfiles.length,
+    }),
+    [pendingProfiles, allProfiles]
+  )
+
+  const adminSidebarItems: SidebarItem[] = [
+    {
+      id: "pending",
+      label: "Pending Approvals",
+      icon: <Clock className="h-4 w-4" />,
+      onClick: () => setActiveTab("pending"),
+      isActive: activeTab === "pending",
+      badge: stats.pending > 0 ? stats.pending : undefined,
+    },
+    {
+      id: "all",
+      label: "All User Accounts",
+      icon: <Users className="h-4 w-4" />,
+      onClick: () => setActiveTab("all"),
+      isActive: activeTab === "all",
+      badge: stats.total,
+    },
+  ]
+
+  // Filter profiles
+  const displayedProfiles = useMemo(() => {
+    const list = activeTab === "pending" ? pendingProfiles : allProfiles
+    return list.filter((user) => {
+      const fullName = `${user.first_name || ""} ${user.last_name || ""}`.toLowerCase()
+      const matchesSearch =
+        fullName.includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (user.barangay && user.barangay.toLowerCase().includes(searchQuery.toLowerCase()))
+
+      const matchesRole = roleFilter === "all" || user.role === roleFilter
+
+      return matchesSearch && matchesRole
+    })
+  }, [activeTab, pendingProfiles, allProfiles, searchQuery, roleFilter])
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "approved":
-        return "bg-green-100 text-green-800 border-green-300"
+        return (
+          <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5" />
+            Approved
+          </Badge>
+        )
       case "rejected":
-        return "bg-red-100 text-red-800 border-red-300"
+        return (
+          <Badge className="bg-rose-500/10 text-rose-600 hover:bg-rose-500/15 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 mr-1.5" />
+            Rejected
+          </Badge>
+        )
       case "pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300"
+        return (
+          <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/15 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse" />
+            Pending Review
+          </Badge>
+        )
     }
   }
 
-  const getRoleBadgeColor = (role: string) => {
+  const getRoleBadge = (role: string) => {
     switch (role) {
       case "municipal":
-        return "bg-blue-100 text-blue-800"
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 font-medium">
+            Municipal MSWDO
+          </Badge>
+        )
       case "barangay":
-        return "bg-purple-100 text-purple-800"
+        return (
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 font-medium">
+            Barangay Official
+          </Badge>
+        )
       case "donor":
-        return "bg-green-100 text-green-800"
+        return (
+          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium">
+            Food Donor
+          </Badge>
+        )
       case "admin":
-        return "bg-red-100 text-red-800"
+        return (
+          <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 font-medium">
+            Super Admin
+          </Badge>
+        )
       default:
-        return "bg-gray-100 text-gray-800"
+        return (
+          <Badge variant="outline" className="text-muted-foreground font-medium">
+            {role}
+          </Badge>
+        )
     }
-  }
-
-  const stats = {
-    pending: pendingProfiles.length,
-    approved: allProfiles.filter((p) => p.approval_status === "approved").length,
-    rejected: allProfiles.filter((p) => p.approval_status === "rejected").length,
-    total: allProfiles.length,
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-500">Checking admin authentication...</p>
+      <div className="min-h-screen bg-muted/20 flex items-center justify-center">
+        <div className="text-center p-8 rounded-2xl bg-card border border-border shadow-sm max-w-sm w-full mx-4">
+          <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Shield className="h-6 w-6" />
+          </div>
+          <h3 className="font-semibold text-foreground mb-1">Authenticating</h3>
+          <p className="text-sm text-muted-foreground">Verifying admin credentials...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-red-200">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Shield className="h-8 w-8 text-red-600" />
-            <h1 className="text-2xl font-bold text-red-800">FoodShare Janiuay</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchProfiles}
-              disabled={loading}
-              className="border-blue-300 text-blue-600 hover:bg-blue-50 bg-transparent"
-            >
-              <TrendingUp className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <span className="text-sm text-gray-600">Super Admin: {profile.username}</span>
-            <Button
-              variant="outline"
-              onClick={handleLogout}
-              className="border-red-300 text-red-600 hover:bg-red-50 bg-transparent"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="h-screen bg-muted/20 flex overflow-hidden">
+      {/* Shared Unified Sidebar */}
+      <Sidebar items={adminSidebarItems} title="Admin Portal" collapsible={true} />
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Super Admin Dashboard</h2>
-          <p className="text-gray-600">Manage representative account approvals and system oversight</p>
-        </div>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Shared Unified Header */}
+        <Header
+          userName={profile.username}
+          subtitle="Super Admin"
+          onRefresh={fetchProfiles}
+          onLogout={handleLogout}
+        />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Pending Approvals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                <Clock className="h-8 w-8 text-yellow-600" />
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="max-w-6xl mx-auto space-y-6">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                  Super Admin Oversight
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage representative registrations, verify community accounts, and audit platform security.
+                </p>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Approved Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
-                <UserCheck className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
+              {stats.pending > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold self-start md:self-auto">
+                  <Clock className="h-3.5 w-3.5 animate-pulse" />
+                  <span>{stats.pending} approval requests require attention</span>
+                </div>
+              )}
+            </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Rejected Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-                <XCircle className="h-8 w-8 text-red-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-                <Users className="h-8 w-8 text-gray-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <Button
-            variant={activeTab === "pending" ? "default" : "outline"}
-            onClick={() => setActiveTab("pending")}
-            className={activeTab === "pending" ? "bg-red-600" : ""}
-          >
-            Pending Approvals ({stats.pending})
-          </Button>
-          <Button
-            variant={activeTab === "all" ? "default" : "outline"}
-            onClick={() => setActiveTab("all")}
-            className={activeTab === "all" ? "bg-red-600" : ""}
-          >
-            All Users ({stats.total})
-          </Button>
-        </div>
-
-        {/* User List */}
-        {loading ? (
-          <div className="text-center py-12">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-spin" />
-            <p className="text-gray-500">Loading users...</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {activeTab === "pending" && pendingProfiles.length === 0 && (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No pending approvals</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {activeTab === "all" && allProfiles.length === 0 && (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No users found</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {(activeTab === "pending" ? pendingProfiles : allProfiles).map((user) => (
-              <Card key={user.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </h3>
-                        <Badge className={getRoleBadgeColor(user.role)}>
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                        </Badge>
-                        <Badge className={getStatusColor(user.approval_status)}>
-                          {user.approval_status.charAt(0).toUpperCase() + user.approval_status.slice(1)}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Email:</span> {user.email}
-                        </div>
-                        {user.phone && (
-                          <div>
-                            <span className="font-medium">Phone:</span> {user.phone}
-                          </div>
-                        )}
-                        {user.barangay && (
-                          <div>
-                            <span className="font-medium">Barangay:</span> {user.barangay}
-                          </div>
-                        )}
-                        {user.address && (
-                          <div>
-                            <span className="font-medium">Address:</span> {user.address}
-                          </div>
-                        )}
-                        <div>
-                          <span className="font-medium">Registered:</span>{" "}
-                          {new Date(user.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {user.approval_status === "pending" && (
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleApproval(user.id, "approved")}
-                          className="border-green-300 text-green-700 hover:bg-green-50"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleApproval(user.id, "rejected")}
-                          className="border-red-300 text-red-700 hover:bg-red-50"
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </div>
-                    )}
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Pending Card */}
+              <Card className="rounded-2xl border-border/60 shadow-xs hover:shadow-md transition-all duration-200">
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Pending Approvals</p>
+                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                      {loading ? <Skeleton className="h-8 w-12" /> : stats.pending}
+                    </p>
+                  </div>
+                  <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Clock className="h-5 w-5" />
                   </div>
                 </CardContent>
               </Card>
-            ))}
+
+              {/* Approved Card */}
+              <Card className="rounded-2xl border-border/60 shadow-xs hover:shadow-md transition-all duration-200">
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Approved Accounts</p>
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {loading ? <Skeleton className="h-8 w-12" /> : stats.approved}
+                    </p>
+                  </div>
+                  <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <UserCheck className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Rejected Card */}
+              <Card className="rounded-2xl border-border/60 shadow-xs hover:shadow-md transition-all duration-200">
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Rejected Accounts</p>
+                    <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                      {loading ? <Skeleton className="h-8 w-12" /> : stats.rejected}
+                    </p>
+                  </div>
+                  <div className="h-11 w-11 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                    <UserX className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Total Card */}
+              <Card className="rounded-2xl border-border/60 shadow-xs hover:shadow-md transition-all duration-200">
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Total Registered</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {loading ? <Skeleton className="h-8 w-12" /> : stats.total}
+                    </p>
+                  </div>
+                  <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Users className="h-5 w-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Filter and Tab Controls */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-card p-3 rounded-2xl border border-border/60 shadow-xs">
+              {/* Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-muted rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("pending")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    activeTab === "pending"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Pending Review ({stats.pending})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("all")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    activeTab === "all"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  All Users ({stats.total})
+                </button>
+              </div>
+
+              {/* Search & Role Filter */}
+              <div className="flex flex-1 sm:max-w-md items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, email, barangay..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9 text-xs rounded-xl bg-background border-border/60"
+                  />
+                </div>
+
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="h-9 text-xs rounded-xl bg-background border border-border/60 px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="all">All Roles</option>
+                  <option value="donor">Donor</option>
+                  <option value="barangay">Barangay</option>
+                  <option value="municipal">Municipal</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            {/* User List Content */}
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="rounded-2xl border-border/60 p-6">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-12 w-12 rounded-full" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-1/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : displayedProfiles.length === 0 ? (
+              <Card className="rounded-2xl border-border/60 border-dashed">
+                <CardContent className="py-16 text-center">
+                  <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3 text-muted-foreground">
+                    {activeTab === "pending" ? (
+                      <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                    ) : (
+                      <Users className="h-6 w-6" />
+                    )}
+                  </div>
+                  <h3 className="text-base font-semibold text-foreground">
+                    {activeTab === "pending"
+                      ? "All caught up!"
+                      : "No user accounts match your search"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                    {activeTab === "pending"
+                      ? "There are currently no representative or user accounts awaiting approval."
+                      : "Try adjusting your search criteria or resetting filters."}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {displayedProfiles.map((user) => {
+                  const initials = `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`.toUpperCase() || "U"
+                  const isActing = actionLoadingId === user.id
+
+                  return (
+                    <Card
+                      key={user.id}
+                      className="rounded-2xl border-border/60 shadow-xs hover:shadow-md transition-all duration-200 overflow-hidden"
+                    >
+                      <CardContent className="p-5 md:p-6">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          {/* User info */}
+                          <div className="flex items-start gap-4">
+                            <Avatar className="h-12 w-12 rounded-2xl border border-border shadow-xs shrink-0">
+                              <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-green-600 text-white font-bold text-sm">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base font-bold text-foreground">
+                                  {user.first_name} {user.last_name}
+                                </h3>
+                                {getRoleBadge(user.role)}
+                                {getStatusBadge(user.approval_status)}
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
+                                  <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                  <span className="truncate">{user.email}</span>
+                                </div>
+
+                                {user.phone && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                    <span>{user.phone}</span>
+                                  </div>
+                                )}
+
+                                {user.barangay && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Building className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                    <span>Brgy. {user.barangay}</span>
+                                  </div>
+                                )}
+
+                                {user.address && (
+                                  <div className="flex items-center gap-1.5 sm:col-span-2">
+                                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                    <span className="truncate">{user.address}</span>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-1.5">
+                                  <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                  <span>
+                                    Registered: {new Date(user.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 self-end lg:self-center shrink-0 pt-2 lg:pt-0">
+                            {user.approval_status === "pending" ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApproval(user.id, "approved")}
+                                  disabled={isActing}
+                                  className="h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-xs"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleApproval(user.id, "rejected")}
+                                  disabled={isActing}
+                                  className="h-9 px-3 rounded-xl border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-medium"
+                                >
+                                  <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                  Reject
+                                </Button>
+                              </>
+                            ) : user.approval_status === "rejected" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleApproval(user.id, "approved")}
+                                disabled={isActing}
+                                className="h-8 px-2.5 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 text-xs"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                Re-approve
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleApproval(user.id, "rejected")}
+                                disabled={isActing}
+                                className="h-8 px-2.5 rounded-xl text-xs text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                              >
+                                Revoke Access
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </main>
       </div>
     </div>
   )

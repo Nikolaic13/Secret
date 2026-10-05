@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { User, Mail, Lock, Phone, MapPin, AlertTriangle, Shield, CheckCircle } from "lucide-react"
+import { User, Mail, Lock, Phone, MapPin, AlertTriangle, Shield, CheckCircle, Heart } from "lucide-react"
 
 export default function OfficialsRegisterPage() {
   const [formData, setFormData] = useState({
@@ -363,8 +363,8 @@ export default function OfficialsRegisterPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Shield className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-blue-800">FoodShare Janiuay</h1>
+            <Heart className="h-8 w-8 text-emerald-600" />
+            <h1 className="text-2xl font-bold text-foreground">FoodShare Janiuay</h1>
           </div>
           <p className="text-gray-600">Representative Registration Portal</p>
           <p className="text-sm text-gray-500">For Municipal & Barangay Representatives</p>
