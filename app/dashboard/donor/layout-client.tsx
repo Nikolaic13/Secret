@@ -9,6 +9,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
+import { MobileNavProvider } from "@/components/layout/sidebar-context"
+
 export function DonorLayoutClient({ children }: { children: React.ReactNode }) {
   const {
     profile,
@@ -66,21 +68,22 @@ export function DonorLayoutClient({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="h-screen bg-muted/20 flex overflow-hidden">
-      {/* Collapsible Sidebar */}
-      <Sidebar items={donorSidebarItems} title="Donor Portal" collapsible={true} />
+    <MobileNavProvider>
+      <div className="h-screen bg-muted/20 flex overflow-hidden">
+        {/* Collapsible Sidebar */}
+        <Sidebar items={donorSidebarItems} title="Donor Portal" collapsible={true} />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header
-          userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
-          subtitle="Food Donor"
-          notificationsCount={unreadCount}
-          onToggleNotifications={() => setShowNotifications((prev) => !prev)}
-          onRefresh={fetchAllData}
-          onLogout={handleLogout}
-        />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header
+            userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
+            subtitle="Food Donor"
+            notificationsCount={unreadCount}
+            onToggleNotifications={() => setShowNotifications((prev) => !prev)}
+            onRefresh={fetchAllData}
+            onLogout={handleLogout}
+          />
 
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <div className="container mx-auto max-w-6xl">
             {/* Notifications Dropdown / Card */}
             {showNotifications && (
@@ -185,5 +188,6 @@ export function DonorLayoutClient({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </MobileNavProvider>
   )
 }

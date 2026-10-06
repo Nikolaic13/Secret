@@ -217,21 +217,21 @@ export default function BeneficiariesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
           {/* Quick-Add Urgent Beneficiary Button */}
           <Button
             onClick={() => openAddModal(true)}
-            className="bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-all flex items-center gap-2"
+            className="flex-1 sm:flex-initial bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm h-9"
           >
             <Flame className="h-4 w-4" />
-            Add Urgent Beneficiary
+            <span className="hidden xs:inline">Add</span> Urgent
           </Button>
 
           {/* Standard Beneficiary Button */}
           <Button
             onClick={() => openAddModal(false)}
             variant="outline"
-            className="border-gray-300 hover:bg-gray-100 flex items-center gap-2"
+            className="flex-1 sm:flex-initial border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-1.5 text-xs sm:text-sm h-9"
           >
             <UserPlus className="h-4 w-4 text-gray-600" />
             Add Beneficiary
@@ -300,8 +300,8 @@ export default function BeneficiariesPage() {
 
       {/* Filter and Search Bar */}
       <Card className="shadow-sm border-gray-200">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
             {/* Search Input */}
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -314,13 +314,13 @@ export default function BeneficiariesPage() {
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg text-xs">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+              <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-gray-100 p-1 rounded-lg text-xs w-full sm:w-auto">
                 <Button
                   size="sm"
                   variant={filterUrgency === "all" ? "default" : "ghost"}
                   onClick={() => setFilterUrgency("all")}
-                  className={filterUrgency === "all" ? "bg-white text-gray-900 shadow-sm h-7" : "h-7 text-gray-600"}
+                  className={filterUrgency === "all" ? "bg-white text-gray-900 shadow-sm h-7 text-center justify-center text-[11px] sm:text-xs px-2" : "h-7 text-gray-600 text-center justify-center text-[11px] sm:text-xs px-2"}
                 >
                   All ({beneficiaries.length})
                 </Button>
@@ -330,18 +330,18 @@ export default function BeneficiariesPage() {
                   onClick={() => setFilterUrgency("urgent")}
                   className={
                     filterUrgency === "urgent"
-                      ? "bg-red-600 text-white shadow-sm h-7"
-                      : "h-7 text-red-700 hover:text-red-800"
+                      ? "bg-red-600 text-white shadow-sm h-7 text-center justify-center text-[11px] sm:text-xs px-2"
+                      : "h-7 text-red-700 hover:text-red-800 text-center justify-center text-[11px] sm:text-xs px-2"
                   }
                 >
-                  <Flame className="h-3 w-3 mr-1" />
-                  Urgent Only ({urgentCount})
+                  <Flame className="h-3 w-3 mr-0.5 sm:mr-1 shrink-0" />
+                  Urgent ({urgentCount})
                 </Button>
                 <Button
                   size="sm"
                   variant={filterUrgency === "standard" ? "default" : "ghost"}
                   onClick={() => setFilterUrgency("standard")}
-                  className={filterUrgency === "standard" ? "bg-white text-gray-900 shadow-sm h-7" : "h-7 text-gray-600"}
+                  className={filterUrgency === "standard" ? "bg-white text-gray-900 shadow-sm h-7 text-center justify-center text-[11px] sm:text-xs px-2" : "h-7 text-gray-600 text-center justify-center text-[11px] sm:text-xs px-2"}
                 >
                   Standard ({beneficiaries.length - urgentCount})
                 </Button>
@@ -349,7 +349,7 @@ export default function BeneficiariesPage() {
 
               {/* Category Filter */}
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-[180px] h-9 text-xs bg-white">
+                <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs bg-white">
                   <Filter className="h-3 w-3 mr-1 text-gray-400" />
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
@@ -398,23 +398,23 @@ export default function BeneficiariesPage() {
                 }`}
               >
                 <CardContent className="p-4 sm:p-5">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-900 text-base">{b.full_name}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{b.full_name}</span>
 
                         {b.is_urgent && (
-                          <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-0.5 flex items-center gap-1 shadow-sm">
+                          <Badge className="bg-red-600 hover:bg-red-700 text-white text-[10px] sm:text-xs px-2 py-0.5 flex items-center gap-1 shadow-sm">
                             <Flame className="h-3 w-3 animate-pulse" />
-                            URGENT BENEFICIARY
+                            URGENT
                           </Badge>
                         )}
 
-                        <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs bg-slate-100 text-slate-700">
                           {b.age} yrs old ({ageGroupLabel})
                         </Badge>
 
-                        <Badge variant="outline" className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50/50">
+                        <Badge variant="outline" className="text-[10px] sm:text-xs border-indigo-200 text-indigo-700 bg-indigo-50/50">
                           {getCategoryLabel(b.vulnerability_category)}
                         </Badge>
                       </div>
@@ -430,18 +430,18 @@ export default function BeneficiariesPage() {
                       )}
 
                       {/* Details row */}
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 pt-1">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 pt-1">
                         <span className="flex items-center gap-1">
-                          <Home className="h-3.5 w-3.5 text-gray-400" />
+                          <Home className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                           {b.address_purok}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5 text-gray-400" />
+                          <Users className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                           {b.household_size} Family Member{b.household_size > 1 ? "s" : ""}
                         </span>
                         {b.contact_number && (
                           <span className="flex items-center gap-1">
-                            <Phone className="h-3.5 w-3.5 text-gray-400" />
+                            <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                             {b.contact_number}
                           </span>
                         )}
@@ -450,15 +450,15 @@ export default function BeneficiariesPage() {
                     </div>
 
                     {/* Action */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Link href={`/dashboard/barangay/distribution?beneficiaryId=${b.id}`}>
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                      <Link href={`/dashboard/barangay/distribution?beneficiaryId=${b.id}`} className="w-full sm:w-auto">
                         <Button
                           size="sm"
-                          className={
+                          className={`w-full sm:w-auto ${
                             b.is_urgent
                               ? "bg-red-600 hover:bg-red-700 text-white font-medium"
                               : "bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                          }
+                          }`}
                         >
                           <HeartHandshake className="h-4 w-4 mr-1.5" />
                           Distribute Aid

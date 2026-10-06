@@ -14,6 +14,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
+import { MobileNavProvider } from "@/components/layout/sidebar-context"
 import {
   Heart,
   LogOut,
@@ -1154,18 +1155,19 @@ export default function MunicipalDashboard() {
   ]
 
   return (
-    <div className="h-screen bg-muted/20 flex overflow-hidden">
-      <Sidebar items={sidebarItems} title="Municipal MSWDO" collapsible={true} />
+    <MobileNavProvider>
+      <div className="h-screen bg-muted/20 flex overflow-hidden">
+        <Sidebar items={sidebarItems} title="Municipal MSWDO" collapsible={true} />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header
-          userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
-          subtitle="Municipal Representative"
-          onRefresh={fetchAllData}
-          onLogout={handleLogout}
-        />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header
+            userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
+            subtitle="Municipal Representative"
+            onRefresh={fetchAllData}
+            onLogout={handleLogout}
+          />
 
-        <main className="flex-1 overflow-y-auto p-8">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <div className="container mx-auto">
             {/* Action Message */}
             {actionMessage && (
@@ -2400,5 +2402,6 @@ export default function MunicipalDashboard() {
         </main>
       </div>
     </div>
+    </MobileNavProvider>
   )
 }

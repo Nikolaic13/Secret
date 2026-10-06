@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Sidebar, SidebarItem } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 
+import { MobileNavProvider } from "@/components/layout/sidebar-context"
+
 export function BarangayLayoutClient({ children }: { children: React.ReactNode }) {
   const { profile, loading, fetchError, fetchAllData, handleLogout } = useBarangay()
 
@@ -85,25 +87,27 @@ export function BarangayLayoutClient({ children }: { children: React.ReactNode }
   ]
 
   return (
-    <div className="h-screen bg-muted/20 flex overflow-hidden">
-      {/* Collapsible Sidebar */}
-      <Sidebar items={sidebarItems} title="Barangay Portal" collapsible={true} />
+    <MobileNavProvider>
+      <div className="h-screen bg-muted/20 flex overflow-hidden">
+        {/* Collapsible Sidebar */}
+        <Sidebar items={sidebarItems} title="Barangay Portal" collapsible={true} />
 
-      {/* Main Container */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Sticky Header */}
-        <Header
-          userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
-          subtitle={profile?.barangay ? `Brgy. ${profile.barangay}` : "Barangay Official"}
-          onRefresh={fetchAllData}
-          onLogout={handleLogout}
-        />
+        {/* Main Container */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Sticky Header */}
+          <Header
+            userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`}
+            subtitle={profile?.barangay ? `Brgy. ${profile.barangay}` : "Barangay Official"}
+            onRefresh={fetchAllData}
+            onLogout={handleLogout}
+          />
 
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="container mx-auto max-w-6xl">{children}</div>
-        </main>
+          {/* Main Content Area */}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+            <div className="container mx-auto max-w-6xl">{children}</div>
+          </main>
+        </div>
       </div>
-    </div>
+    </MobileNavProvider>
   )
 }

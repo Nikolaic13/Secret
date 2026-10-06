@@ -21,3 +21,5 @@
 - [x] completely revamp the landing page design to be more professional, clean, and modern
 - [x] improve UI/UX of the app itself (dashboards, auth, etc.)
 - [x] document each UI/UX design patterns into /docs/DESIGN.md for reference
+- [ ] make dashboard UI much modern, cleaner, and more polished
+- [x] make dashboard layouts mobile friendly (responsive drawer sidebar, hamburger menu, adaptive tables & forms)

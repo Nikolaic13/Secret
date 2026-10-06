@@ -429,16 +429,16 @@ export default function BarangayInventoryPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-gray-100 p-1 flex-wrap">
-          <TabsTrigger value="inventory" className="flex items-center gap-2">
+        <TabsList className="bg-gray-100 p-1 w-full sm:w-auto grid grid-cols-1 sm:grid-cols-3 gap-1">
+          <TabsTrigger value="inventory" className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm">
             <Boxes className="h-4 w-4" />
             Food Inventory ({foodItems.length})
           </TabsTrigger>
-          <TabsTrigger value="packs" className="flex items-center gap-2">
+          <TabsTrigger value="packs" className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm">
             <Package className="h-4 w-4" />
             Food Packs ({foodPacks.length})
           </TabsTrigger>
-          <TabsTrigger value="assemble" className="flex items-center gap-2">
+          <TabsTrigger value="assemble" className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm">
             <Sparkles className="h-4 w-4 text-emerald-600" />
             Create Food Packs
           </TabsTrigger>
@@ -1111,7 +1111,7 @@ export default function BarangayInventoryPage() {
                 </div>
 
                 {/* Calculation & Assembly Actions */}
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <h4 className="font-bold text-xs text-emerald-950">Assembly Feasibility</h4>
                     <p className="text-xs text-emerald-800 mt-0.5">
@@ -1123,8 +1123,8 @@ export default function BarangayInventoryPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="flex items-center gap-1.5">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2">
                       <Label htmlFor="num_packs" className="text-xs font-semibold whitespace-nowrap">
                         Assemble:
                       </Label>
@@ -1143,10 +1143,10 @@ export default function BarangayInventoryPage() {
                     <Button
                       type="submit"
                       disabled={actionLoading || calculateMaxPacksPossible() === 0}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs flex items-center gap-1.5 shrink-0"
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto h-9 font-medium shadow-sm"
                     >
-                      <Package className="h-4 w-4" />
-                      {actionLoading ? "Packaging..." : "Assemble & Deduct Stock"}
+                      <Package className="h-4 w-4 shrink-0" />
+                      <span>{actionLoading ? "Packaging..." : "Assemble & Deduct Stock"}</span>
                     </Button>
                   </div>
                 </div>

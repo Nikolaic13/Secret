@@ -28,6 +28,7 @@ import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { Sidebar, SidebarItem } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
+import { MobileNavProvider } from "@/components/layout/sidebar-context"
 
 interface Profile {
   id: string
@@ -273,21 +274,22 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="h-screen bg-muted/20 flex overflow-hidden">
-      {/* Shared Unified Sidebar */}
-      <Sidebar items={adminSidebarItems} title="Admin Portal" collapsible={true} />
+    <MobileNavProvider>
+      <div className="h-screen bg-muted/20 flex overflow-hidden">
+        {/* Shared Unified Sidebar */}
+        <Sidebar items={adminSidebarItems} title="Admin Portal" collapsible={true} />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Shared Unified Header */}
-        <Header
-          userName={profile.username}
-          subtitle="Super Admin"
-          onRefresh={fetchProfiles}
-          onLogout={handleLogout}
-        />
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Shared Unified Header */}
+          <Header
+            userName={profile.username}
+            subtitle="Super Admin"
+            onRefresh={fetchProfiles}
+            onLogout={handleLogout}
+          />
 
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {/* Main Content Area */}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <div className="max-w-6xl mx-auto space-y-6">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -315,9 +317,9 @@ export default function AdminDashboard() {
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground">Pending Approvals</p>
-                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                       {loading ? <Skeleton className="h-8 w-12" /> : stats.pending}
-                    </p>
+                    </div>
                   </div>
                   <div className="h-11 w-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                     <Clock className="h-5 w-5" />
@@ -330,9 +332,9 @@ export default function AdminDashboard() {
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground">Approved Accounts</p>
-                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                       {loading ? <Skeleton className="h-8 w-12" /> : stats.approved}
-                    </p>
+                    </div>
                   </div>
                   <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                     <UserCheck className="h-5 w-5" />
@@ -345,9 +347,9 @@ export default function AdminDashboard() {
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground">Rejected Accounts</p>
-                    <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                    <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
                       {loading ? <Skeleton className="h-8 w-12" /> : stats.rejected}
-                    </p>
+                    </div>
                   </div>
                   <div className="h-11 w-11 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
                     <UserX className="h-5 w-5" />
@@ -360,9 +362,9 @@ export default function AdminDashboard() {
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground">Total Registered</p>
-                    <p className="text-2xl font-bold text-foreground">
+                    <div className="text-2xl font-bold text-foreground">
                       {loading ? <Skeleton className="h-8 w-12" /> : stats.total}
-                    </p>
+                    </div>
                   </div>
                   <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                     <Users className="h-5 w-5" />
@@ -587,5 +589,6 @@ export default function AdminDashboard() {
         </main>
       </div>
     </div>
+    </MobileNavProvider>
   )
 }

@@ -317,17 +317,17 @@ export default function DistributionPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/barangay/inventory">
-            <Button variant="outline" className="border-gray-300 flex items-center gap-2 text-xs">
-              <Boxes className="h-4 w-4 text-amber-500" />
-              Manage Food & Pack Inventory
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto">
+          <Link href="/dashboard/barangay/inventory" className="flex-1 sm:flex-initial w-full sm:w-auto">
+            <Button variant="outline" className="w-full border-gray-300 flex items-center justify-center gap-1.5 text-xs h-9">
+              <Boxes className="h-4 w-4 text-amber-500 shrink-0" />
+              <span className="truncate">Food & Pack Inventory</span>
             </Button>
           </Link>
-          <Link href="/dashboard/barangay/beneficiaries">
-            <Button variant="outline" className="border-gray-300 flex items-center gap-2 text-xs">
-              <User className="h-4 w-4 text-gray-500" />
-              Manage Beneficiaries
+          <Link href="/dashboard/barangay/beneficiaries" className="flex-1 sm:flex-initial w-full sm:w-auto">
+            <Button variant="outline" className="w-full border-gray-300 flex items-center justify-center gap-1.5 text-xs h-9">
+              <User className="h-4 w-4 text-gray-500 shrink-0" />
+              <span className="truncate">Beneficiaries</span>
             </Button>
           </Link>
         </div>
@@ -335,14 +335,14 @@ export default function DistributionPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-gray-100 p-1">
-          <TabsTrigger value="form" className="flex items-center gap-2">
-            <HeartHandshake className="h-4 w-4" />
-            Distribution Form
+        <TabsList className="bg-gray-100 p-1 w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+          <TabsTrigger value="form" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+            <HeartHandshake className="h-4 w-4 shrink-0" />
+            <span>Distribution Form</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            Distribution Logs ({distributionHistory.length})
+          <TabsTrigger value="history" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+            <History className="h-4 w-4 shrink-0" />
+            <span>Logs ({distributionHistory.length})</span>
           </TabsTrigger>
         </TabsList>
 
@@ -907,70 +907,123 @@ export default function DistributionPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Recipient</TableHead>
-                        <TableHead>Age / Group</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Item Distributed</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Distributor</TableHead>
-                        <TableHead>Notes</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {distributionHistory.map((d) => (
-                        <TableRow key={d.id} className="hover:bg-gray-50/80">
-                          <TableCell className="font-medium whitespace-nowrap text-xs">
-                            {d.distribution_date}
-                          </TableCell>
-                          <TableCell className="font-semibold text-gray-900 text-xs">
+                <>
+                  {/* Mobile View: Cards */}
+                  <div className="block md:hidden space-y-3">
+                    {distributionHistory.map((d) => (
+                      <div
+                        key={d.id}
+                        className="p-3.5 rounded-xl border border-gray-200 bg-white shadow-xs space-y-2 text-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-gray-900 text-sm">
                             {d.beneficiary_name}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <Badge variant="secondary" className="text-[10px]">
-                              {d.beneficiary_age}y (
-                              {getAgeGroupLabel(getAgeCategory(d.beneficiary_age))})
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <Badge
-                              className={
-                                d.item_type === "clothing"
-                                  ? "bg-indigo-100 text-indigo-800"
-                                  : d.item_type === "food"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-orange-100 text-orange-800"
-                              }
-                            >
-                              {d.item_type.toUpperCase()}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <span className="font-medium">{d.item_name}</span>
-                            {d.clothing_size && (
-                              <span className="text-gray-400 ml-1 text-[11px]">
-                                (Size: {d.clothing_size})
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs font-semibold">
+                          </span>
+                          <span className="text-[11px] text-gray-500 font-medium">
+                            {d.distribution_date}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            className={
+                              d.item_type === "clothing"
+                                ? "bg-indigo-100 text-indigo-800"
+                                : d.item_type === "food"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-orange-100 text-orange-800"
+                            }
+                          >
+                            {d.item_type.toUpperCase()}
+                          </Badge>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {d.beneficiary_age}y ({getAgeGroupLabel(getAgeCategory(d.beneficiary_age))})
+                          </Badge>
+                        </div>
+
+                        <div className="bg-gray-50 p-2 rounded-lg flex items-center justify-between">
+                          <span className="font-medium text-gray-800">
+                            {d.item_name} {d.clothing_size && `(Size: ${d.clothing_size})`}
+                          </span>
+                          <span className="font-bold text-gray-900">
                             {d.quantity} {d.unit}
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-600">
-                            {d.distributor_name}
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-400 italic">
-                            {d.notes || "-"}
-                          </TableCell>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-gray-500 pt-0.5">
+                          <span>By: {d.distributor_name}</span>
+                          {d.notes && <span className="italic truncate max-w-[150px]">{d.notes}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop View: Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Recipient</TableHead>
+                          <TableHead>Age / Group</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Item Distributed</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Distributor</TableHead>
+                          <TableHead>Notes</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {distributionHistory.map((d) => (
+                          <TableRow key={d.id} className="hover:bg-gray-50/80">
+                            <TableCell className="font-medium whitespace-nowrap text-xs">
+                              {d.distribution_date}
+                            </TableCell>
+                            <TableCell className="font-semibold text-gray-900 text-xs">
+                              {d.beneficiary_name}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <Badge variant="secondary" className="text-[10px]">
+                                {d.beneficiary_age}y (
+                                {getAgeGroupLabel(getAgeCategory(d.beneficiary_age))})
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <Badge
+                                className={
+                                  d.item_type === "clothing"
+                                    ? "bg-indigo-100 text-indigo-800"
+                                    : d.item_type === "food"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-orange-100 text-orange-800"
+                                }
+                              >
+                                {d.item_type.toUpperCase()}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <span className="font-medium">{d.item_name}</span>
+                              {d.clothing_size && (
+                                <span className="text-gray-400 ml-1 text-[11px]">
+                                  (Size: {d.clothing_size})
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs font-semibold">
+                              {d.quantity} {d.unit}
+                            </TableCell>
+                            <TableCell className="text-xs text-gray-600">
+                              {d.distributor_name}
+                            </TableCell>
+                            <TableCell className="text-xs text-gray-400 italic">
+                              {d.notes || "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
