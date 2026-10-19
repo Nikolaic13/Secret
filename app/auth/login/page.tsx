@@ -104,7 +104,7 @@ export default function LoginPage() {
             <div className="text-left">
               <h1 className="text-xl font-bold tracking-tight text-foreground">FoodShare</h1>
               <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                Janiuay Platform
+                Donor Portal
               </p>
             </div>
           </Link>

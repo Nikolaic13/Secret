@@ -3,7 +3,7 @@ import { DonorProvider } from "./context"
 import { DonorLayoutClient } from "./layout-client"
 
 export const metadata = {
-  title: "Donor Portal | FoodShare Janiuay",
+  title: "Donor Portal | FoodShare",
   description: "Track surplus food contributions, pin pickup locations, and monitor distribution.",
 }
 

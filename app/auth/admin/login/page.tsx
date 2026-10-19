@@ -56,7 +56,7 @@ export default function AdminLoginPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Shield className="h-8 w-8 text-red-600" />
-            <h1 className="text-2xl font-bold text-red-800">FoodShare Janiuay</h1>
+            <h1 className="text-2xl font-bold text-red-800">FoodShare</h1>
           </div>
           <p className="text-gray-600">Super Admin Portal</p>
           <p className="text-sm text-gray-500">System Administration Access</p>

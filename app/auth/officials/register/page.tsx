@@ -364,7 +364,7 @@ export default function OfficialsRegisterPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Heart className="h-8 w-8 text-emerald-600" />
-            <h1 className="text-2xl font-bold text-foreground">FoodShare Janiuay</h1>
+            <h1 className="text-2xl font-bold text-foreground">FoodShare</h1>
           </div>
           <p className="text-gray-600">Representative Registration Portal</p>
           <p className="text-sm text-gray-500">For Municipal & Barangay Representatives</p>

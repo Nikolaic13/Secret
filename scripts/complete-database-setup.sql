@@ -1,4 +1,4 @@
--- Complete database setup for FoodShare Janiuay
+-- Complete database setup for FoodShare
 -- This script drops and recreates all tables with the correct structure
 
 -- Drop existing tables (in correct order to handle foreign keys)

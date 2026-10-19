@@ -125,7 +125,7 @@ export default function DonorGuidelinesPage() {
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-900">
               <strong>Important Notice:</strong> By donating food, you confirm that items meet basic safety standards and
-              are suitable for consumption. FoodShare Janiuay and its municipal partners review each donation to ensure safe distribution.
+              are suitable for consumption. FoodShare and its municipal partners review each donation to ensure safe distribution.
             </AlertDescription>
           </Alert>
         </CardContent>

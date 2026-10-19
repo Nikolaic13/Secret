@@ -147,7 +147,7 @@ export function Sidebar({ items, title, className, collapsible = true }: Sidebar
               href="/"
               onClick={() => setOpenMobile(false)}
               className="flex items-center gap-2.5 overflow-hidden group focus:outline-none"
-              title="FoodShare Janiuay"
+              title="FoodShare"
             >
               <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform duration-200">
                 <Heart className="h-5 w-5 text-white fill-white/20" />
@@ -157,7 +157,7 @@ export function Sidebar({ items, title, className, collapsible = true }: Sidebar
                   FoodShare
                 </span>
                 <span className="text-[10px] uppercase font-semibold tracking-wider text-emerald-400">
-                  Janiuay Portal
+                  Portal
                 </span>
               </div>
             </Link>
@@ -200,7 +200,7 @@ export function Sidebar({ items, title, className, collapsible = true }: Sidebar
                 "flex items-center gap-2.5 overflow-hidden group focus:outline-none",
                 collapsed ? "justify-center" : ""
               )}
-              title="FoodShare Janiuay"
+              title="FoodShare"
             >
               <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform duration-200">
                 <Heart className="h-5 w-5 text-white fill-white/20" />
@@ -211,7 +211,7 @@ export function Sidebar({ items, title, className, collapsible = true }: Sidebar
                     FoodShare
                   </span>
                   <span className="text-[10px] uppercase font-semibold tracking-wider text-emerald-400">
-                    Janiuay Portal
+                    Portal
                   </span>
                 </div>
               )}

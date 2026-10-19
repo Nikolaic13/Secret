@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "FoodShare Janiuay - Surplus Food Redistribution Platform",
+  title: "FoodShare - Surplus Food Redistribution Platform",
   description:
     "A crowdsourcing web application for the redistribution of surplus food in Janiuay, Iloilo. Connect food donors with communities in need.",
   keywords: "food sharing, surplus food, Janiuay, Iloilo, community, donation, redistribution",

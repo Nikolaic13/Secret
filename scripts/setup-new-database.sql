@@ -1,4 +1,4 @@
--- Complete FoodShare Janiuay Database Setup
+-- Complete FoodShare Database Setup
 -- Run this script in your new Supabase project to restore the database structure
 
 -- Enable UUID extension

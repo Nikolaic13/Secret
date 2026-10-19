@@ -1,4 +1,4 @@
--- Seed initial data for FoodShare Janiuay
+-- Seed initial data for FoodShare
 
 -- Insert food categories
 INSERT INTO food_categories (name, description, nutritional_priority) VALUES

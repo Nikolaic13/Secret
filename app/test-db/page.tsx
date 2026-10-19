@@ -91,7 +91,7 @@ export default async function TestDatabasePage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Database Connection Test</h1>
         <p className="text-muted-foreground">
-          Testing FoodShare Janiuay Supabase database connection and data integrity
+          Testing FoodShare Supabase database connection and data integrity
         </p>
       </div>
 

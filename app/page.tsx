@@ -57,7 +57,6 @@ export default function HomePage() {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xl font-bold tracking-tight text-slate-900">FoodShare</span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-800">Janiuay</span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium hidden sm:block">Surplus Food Redistribution Initiative</p>
             </div>
@@ -632,7 +631,7 @@ export default function HomePage() {
                 <div className="h-9 w-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white">
                   <Heart className="h-5 w-5 fill-white/20" />
                 </div>
-                <span className="text-xl font-bold text-white tracking-tight">FoodShare Janiuay</span>
+                <span className="text-xl font-bold text-white tracking-tight">FoodShare</span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed pr-4">
                 A crowdsourcing platform for surplus food redistribution and community relief across Janiuay, Iloilo. Built to facilitate municipal collaboration and zero food waste.
@@ -703,7 +702,7 @@ export default function HomePage() {
 
           {/* Bottom Copyright */}
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-            <p>&copy; {new Date().getFullYear()} FoodShare Janiuay. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} FoodShare. All rights reserved.</p>
             <p className="flex items-center gap-1">
               Developed for community empowerment & food security
             </p>
