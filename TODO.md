@@ -11,6 +11,7 @@
 - [x] process of food request of brgy representative 
 - [x] adding of urgent beneficiaries in barangays 
 - [x] process must real world scenario 
+- [x] donation impact feed ("Where Your Donation Goes" - donor traceability, community dispatches, metrics, and reach map) 
 
 ### UI
 - [x] Donator dashboard must have sidebar

@@ -4,7 +4,7 @@ import React from "react"
 import { useDonor } from "./context"
 import { Sidebar, SidebarItem } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
-import { Package, Plus, History, AlertTriangle, Bell, Trash2, X } from "lucide-react"
+import { Package, Plus, History, AlertTriangle, Bell, Trash2, X, HeartHandshake } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,6 +32,13 @@ export function DonorLayoutClient({ children }: { children: React.ReactNode }) {
       label: "My Donations",
       icon: <Package className="h-4 w-4" />,
       href: "/dashboard/donor/donations",
+    },
+    {
+      id: "impact",
+      label: "Where It Goes",
+      icon: <HeartHandshake className="h-4 w-4" />,
+      href: "/dashboard/donor/impact",
+      badge: "Feed",
     },
     {
       id: "new_post",

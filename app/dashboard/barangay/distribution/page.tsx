@@ -58,8 +58,12 @@ import {
   History,
   Info,
   Boxes,
+  Sparkles,
+  Camera,
 } from "lucide-react"
 import Link from "next/link"
+import { createImpactStory } from "@/lib/impact-service"
+import { logDonationTransaction } from "@/lib/transaction-service"
 
 const SAMPLE_FOOD_ITEMS = [
   { id: "f-01", name: "Fortified Rice (5kg Pack)", category: "Grains & Cereals", unit: "packs" },
@@ -100,6 +104,9 @@ export default function DistributionPage() {
   )
   const [notes, setNotes] = useState<string>("")
   const [overrideAgeFilter, setOverrideAgeFilter] = useState<boolean>(false)
+  const [broadcastToFeed, setBroadcastToFeed] = useState<boolean>(false)
+  const [storyTitle, setStoryTitle] = useState<string>("")
+  const [storyDescription, setStoryDescription] = useState<string>("")
 
   // Feedback State
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -283,8 +290,42 @@ export default function DistributionPage() {
         notes: notes.trim() || undefined,
       })
 
+      // Log into unified transaction audit trail
+      await logDonationTransaction({
+        food_item_id: `dist_${Date.now()}`,
+        item_title: finalItemName,
+        action_type: "distributed",
+        target_barangay: barangayName,
+        quantity: Number(quantity),
+        unit: unit,
+        notes: `Distributed to ${selectedBeneficiary.full_name} (${selectedBeneficiary.address_purok || "Barangay"}) by ${distributorName}. ${notes}`,
+      })
+
+      // If official opted to broadcast to donors' Where It Goes feed
+      if (broadcastToFeed) {
+        await createImpactStory({
+          barangayName,
+          title: storyTitle.trim() || `Aid Handover in Brgy. ${barangayName}`,
+          summary: `Distributed ${quantity} ${unit} of "${finalItemName}" to ${selectedBeneficiary.vulnerability_category.replace("_", " ")} beneficiaries.`,
+          description:
+            storyDescription.trim() ||
+            `Barangay ${barangayName} community relief team distributed nutritional food supplies to local households with generous contributions from donors.`,
+          photos: ["/images/impact/brgy_feeding_drive.jpg"],
+          targetGroup: selectedBeneficiary.vulnerability_category.replace("_", " ").toUpperCase(),
+          beneficiariesServed: selectedBeneficiary.household_size || 1,
+          familiesCount: 1,
+          purok: selectedBeneficiary.address_purok || undefined,
+          date: distributionDate,
+          officialsInvolved: [distributorName],
+          itemsIncluded: [{ name: finalItemName, quantity: Number(quantity), unit }],
+          tags: ["Direct Distribution", "Barangay Aid", "Food Relief"],
+        })
+      }
+
       setSuccessMessage(
-        `Distribution logged successfully! ${quantity} ${unit} of "${finalItemName}" issued to ${selectedBeneficiary.full_name}.`
+        `Distribution logged successfully! ${quantity} ${unit} of "${finalItemName}" issued to ${selectedBeneficiary.full_name}.${
+          broadcastToFeed ? " Broadcasted to Donors' Impact Feed." : ""
+        }`
       )
 
       // Refresh data
@@ -293,6 +334,9 @@ export default function DistributionPage() {
       // Reset form fields
       setNotes("")
       setQuantity(1)
+      setBroadcastToFeed(false)
+      setStoryTitle("")
+      setStoryDescription("")
 
       setTimeout(() => setSuccessMessage(null), 6000)
     } catch (err: any) {
@@ -762,6 +806,61 @@ export default function DistributionPage() {
                         className="bg-white"
                       />
                     </div>
+                  </div>
+
+                  {/* Section 6: Broadcast to Donors' Impact Feed (Optional) */}
+                  <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200/80 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={broadcastToFeed}
+                          onChange={(e) => setBroadcastToFeed(e.target.checked)}
+                          className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                        />
+                        <span className="text-xs sm:text-sm font-bold text-emerald-950 flex items-center gap-1.5">
+                          <Sparkles className="h-4 w-4 text-emerald-600" />
+                          Publish to Donors' Impact Feed ("Where It Goes")
+                        </span>
+                      </label>
+                      <Badge className="bg-emerald-600 text-white text-[10px] w-fit">
+                        Community Transparency
+                      </Badge>
+                    </div>
+
+                    <p className="text-[11px] text-emerald-800/90 leading-relaxed">
+                      Publishing shows donors the immediate impact of their food donations in Barangay {barangayName}, fostering continuous community support.
+                    </p>
+
+                    {broadcastToFeed && (
+                      <div className="space-y-3 pt-3 border-t border-emerald-200/60 animate-in fade-in-50 duration-200">
+                        <div className="space-y-1">
+                          <Label htmlFor="storyTitle" className="text-xs font-semibold text-emerald-950">
+                            Highlight Title
+                          </Label>
+                          <Input
+                            id="storyTitle"
+                            value={storyTitle}
+                            onChange={(e) => setStoryTitle(e.target.value)}
+                            placeholder={`e.g. Nutritious Food Handover in Brgy. ${barangayName}`}
+                            className="bg-white text-xs h-8"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="storyDescription" className="text-xs font-semibold text-emerald-950">
+                            Field Dispatch / Note for Donors
+                          </Label>
+                          <Input
+                            id="storyDescription"
+                            value={storyDescription}
+                            onChange={(e) => setStoryDescription(e.target.value)}
+                            placeholder="e.g. Handed over healthy groceries to mothers and toddlers during morning clinic checkups."
+                            className="bg-white text-xs h-8"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Submit Button */}

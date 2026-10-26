@@ -263,29 +263,42 @@ export default function DonorDonationsPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    {canEditOrDelete(item.status) && (
-                      <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      <Link href="/dashboard/donor/impact">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/donor/new?edit=${item.id}`)}
-                          className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
+                          className="text-xs text-emerald-700 bg-emerald-50/80 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 h-8 flex items-center gap-1 font-medium shadow-2xs"
                         >
-                          <User className="h-3.5 w-3.5 mr-1" />
-                          Edit
+                          <Heart className="h-3.5 w-3.5 text-emerald-600 fill-emerald-500/20" />
+                          Where It Goes
                         </Button>
+                      </Link>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowDeleteConfirmation(item.id)}
-                          className="text-xs text-red-600 border-red-200 hover:bg-red-50 h-8"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Delete
-                        </Button>
-                      </div>
-                    )}
+                      {canEditOrDelete(item.status) && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/donor/new?edit=${item.id}`)}
+                            className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
+                          >
+                            <User className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowDeleteConfirmation(item.id)}
+                            className="text-xs text-red-600 border-red-200 hover:bg-red-50 h-8"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Delete
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* Metadata Grid */}
