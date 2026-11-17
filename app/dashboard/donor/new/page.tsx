@@ -14,10 +14,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowLeft, Truck, MapPin, AlertCircle, CheckCircle2, User } from "lucide-react"
+import { ArrowLeft, Truck, MapPin, AlertCircle, CheckCircle2, User, ImagePlus, X, ZoomIn, Loader2 } from "lucide-react"
 import { ExpiryType, formatExpiryDisplay } from "@/lib/distribution-service"
 import { LocationPickerMap } from "@/components/maps/location-picker-map"
 import { logDonationTransaction } from "@/lib/transaction-service"
+import { uploadDonationImage, saveLocalFoodImage, resolveFoodItemImage } from "@/lib/image-service"
 
 const MUNICIPAL_HALL_ADDRESS = "Municipal Hall, Janiuay, Iloilo, Philippines"
 
@@ -32,6 +33,11 @@ function DonationFormContent() {
   const [loading, setLoading] = useState(false)
   const [editingItem, setEditingItem] = useState<FoodItem | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [showImagePreview, setShowImagePreview] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -47,6 +53,7 @@ function DonationFormContent() {
     pickup_contact: "",
     pickup_latitude: 10.9575,
     pickup_longitude: 122.5028,
+    image_url: "",
   })
 
   // Prefill when editing
@@ -74,6 +81,7 @@ function DonationFormContent() {
         pickup_contact: itemToEdit.pickup_contact || "",
         pickup_latitude: itemToEdit.pickup_latitude || 10.9575,
         pickup_longitude: itemToEdit.pickup_longitude || 122.5028,
+        image_url: resolveFoodItemImage(itemToEdit) || "",
       })
     } else {
       // If foodItems not loaded yet, fetch single item
@@ -100,11 +108,65 @@ function DonationFormContent() {
               pickup_contact: data.pickup_contact || "",
               pickup_latitude: data.pickup_latitude || 10.9575,
               pickup_longitude: data.pickup_longitude || 122.5028,
+              image_url: resolveFoodItemImage(data) || "",
             })
           }
         })
     }
   }, [editId, foodItems, supabase])
+
+  const handleImageSelect = async (file: File) => {
+    setImageError(null)
+    setImageUploading(true)
+    try {
+      const uploadedUrl = await uploadDonationImage(file, profile?.id)
+      setFormData((prev) => ({ ...prev, image_url: uploadedUrl }))
+    } catch (err: any) {
+      setImageError(err?.message || "Failed to process image. Please try another file.")
+    } finally {
+      setImageUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      void handleImageSelect(file)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isDragging) setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      void handleImageSelect(file)
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setImageError(null)
+    setFormData((prev) => ({ ...prev, image_url: "" }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -169,10 +231,22 @@ function DonationFormContent() {
         console.warn("Delivery method columns not available, skipping:", columnError)
       }
 
+      // Add image_url if column exists in schema
+      try {
+        const { error: imgColError } = await supabase.from("food_items").select("image_url").limit(1)
+        if (!imgColError) {
+          itemData.image_url = formData.image_url || null
+        }
+      } catch (e) {
+        console.warn("image_url column not available, using local fallback:", e)
+      }
+
       if (editingItem) {
         // Update existing item
         const { error } = await supabase.from("food_items").update(itemData).eq("id", editingItem.id)
         if (error) throw error
+
+        saveLocalFoodImage(editingItem.id, formData.image_url || null)
 
         await logDonationTransaction({
           food_item_id: editingItem.id,
@@ -202,6 +276,8 @@ function DonationFormContent() {
         if (error) throw error
 
         const assignedId = insertedData?.id || newItemId
+        saveLocalFoodImage(String(assignedId), formData.image_url || null)
+
         await logDonationTransaction({
           food_item_id: assignedId,
           item_title: itemData.title,
@@ -303,6 +379,123 @@ function DonationFormContent() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
+            </div>
+
+            {/* Food Photo (Optional) */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Food Photo (Optional)</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleFileInputChange}
+              />
+
+              {!formData.image_url ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => !imageUploading && fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && !imageUploading) {
+                      e.preventDefault()
+                      fileInputRef.current?.click()
+                    }
+                  }}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                    isDragging
+                      ? "border-green-500 bg-green-50/70"
+                      : "border-gray-300 bg-gray-50/60 hover:border-green-400 hover:bg-green-50/30"
+                  }`}
+                >
+                  {imageUploading ? (
+                    <div className="flex flex-col items-center gap-2 py-2">
+                      <Loader2 className="h-8 w-8 text-green-600 animate-spin" />
+                      <p className="text-sm font-medium text-gray-700">Compressing and uploading photo...</p>
+                      <p className="text-xs text-gray-500">This only takes a moment.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="p-3 rounded-full bg-green-100/80 text-green-700">
+                        <ImagePlus className="h-6 w-6" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-800">
+                        Click to upload a photo or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        JPEG, PNG, or WebP up to 10MB • Helps officials inspect food quality and packaging
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 border border-gray-200 rounded-xl bg-gray-50/60 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div
+                    className="relative group w-full sm:w-48 h-40 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0 cursor-pointer"
+                    onClick={() => setShowImagePreview(true)}
+                  >
+                    <img
+                      src={formData.image_url}
+                      alt="Food preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-gray-900 rounded-full p-2 shadow-sm">
+                        <ZoomIn className="h-4 w-4" />
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 text-xs font-semibold">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Photo Attached
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      This photo will be visible to Municipal Social Welfare officials and in your donation records.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={imageUploading}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-8 text-xs"
+                      >
+                        {imageUploading ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Change Photo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={imageUploading}
+                        onClick={handleRemoveImage}
+                        className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" />
+                        Remove Photo
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {imageError && (
+                <Alert variant="destructive" className="text-xs py-2.5">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{imageError}</AlertDescription>
+                </Alert>
+              )}
             </div>
 
             {/* Quantity, Unit & Expiration Details */}
@@ -550,7 +743,7 @@ function DonationFormContent() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3 pt-4 border-t">
-              <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
+              <Button type="submit" disabled={loading || imageUploading} className="bg-green-600 hover:bg-green-700 text-white">
                 {loading ? "Processing..." : editingItem ? "Update Food Item" : "Post Food Item"}
               </Button>
               <Link href="/dashboard/donor/donations">
@@ -574,6 +767,15 @@ function DonationFormContent() {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="p-4 bg-gray-50 rounded-lg text-xs space-y-2 border">
+              {formData.image_url && (
+                <div className="w-full h-36 rounded-lg overflow-hidden border border-gray-200 bg-white mb-2">
+                  <img
+                    src={formData.image_url}
+                    alt={formData.title || "Food donation preview"}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <h4 className="font-semibold text-gray-900 text-sm">{formData.title}</h4>
               <p className="text-gray-600">
                 <strong>Category:</strong> <span className="capitalize">{formData.category}</span> |{" "}
@@ -604,6 +806,25 @@ function DonationFormContent() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Full Image Preview Dialog */}
+      <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Donation Photo Preview</DialogTitle>
+            <DialogDescription>{formData.title || "Attached food item photo"}</DialogDescription>
+          </DialogHeader>
+          {formData.image_url && (
+            <div className="w-full max-h-[65vh] rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+              <img
+                src={formData.image_url}
+                alt={formData.title || "Food photo preview"}
+                className="max-w-full max-h-[65vh] object-contain"
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

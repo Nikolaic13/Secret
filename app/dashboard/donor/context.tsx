@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { ExpiryType } from "@/lib/distribution-service"
 import { getTransactionLogs, TransactionLogEntry } from "@/lib/transaction-service"
+import { resolveFoodItemImage, removeLocalFoodImage } from "@/lib/image-service"
 
 export interface Profile {
   id: string
@@ -31,6 +32,7 @@ export interface FoodItem {
   pickup_contact?: string
   pickup_latitude?: number
   pickup_longitude?: number
+  image_url?: string | null
   created_at: string
   rejection_reason?: string
   rejected_at?: string
@@ -106,7 +108,11 @@ export function DonorProvider({ children }: { children: React.ReactNode }) {
         .order("created_at", { ascending: false })
 
       if (!error && data) {
-        setFoodItems(data)
+        const enriched = data.map((item: any) => ({
+          ...item,
+          image_url: resolveFoodItemImage(item) || null,
+        }))
+        setFoodItems(enriched)
       }
     } catch (err) {
       console.error("Error fetching food items:", err)
@@ -184,6 +190,7 @@ export function DonorProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.from("food_items").delete().eq("id", itemId)
       if (error) throw error
+      removeLocalFoodImage(itemId)
       await fetchFoodItems()
       return true
     } catch (error) {

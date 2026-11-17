@@ -72,7 +72,15 @@ export function DonationJourneyCard({ journey, onViewStory }: DonationJourneyCar
       {/* Top Banner & Title Bar */}
       <CardHeader className="p-4 sm:p-5 bg-gradient-to-r from-zinc-50 to-white border-b border-zinc-100 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
+          <div className="flex items-start gap-3">
+            {journey.imageUrl && (
+              <img
+                src={journey.imageUrl}
+                alt={journey.title}
+                className="w-16 h-16 rounded-xl object-cover border border-zinc-200 shrink-0"
+              />
+            )}
+            <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
@@ -117,6 +125,7 @@ export function DonationJourneyCard({ journey, onViewStory }: DonationJourneyCar
               <span>•</span>
               <span className="text-emerald-700 font-medium">Approx. {journey.estimatedMeals} meals created</span>
             </CardDescription>
+            </div>
           </div>
 
           {/* Quick Action Button */}

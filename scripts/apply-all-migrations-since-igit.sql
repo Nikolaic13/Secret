@@ -42,6 +42,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'food_items' AND column_name = 'expiry_date_to') THEN
         ALTER TABLE food_items ADD COLUMN expiry_date_to DATE;
     END IF;
+
+    -- Food item photo column
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'food_items' AND column_name = 'image_url') THEN
+        ALTER TABLE food_items ADD COLUMN image_url TEXT;
+    END IF;
 END $$;
 
 -- ------------------------------------------------------------------------------

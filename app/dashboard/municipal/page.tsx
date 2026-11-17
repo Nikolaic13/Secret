@@ -47,6 +47,7 @@ import {
   getTransactionLogs,
   TransactionLogEntry,
 } from "@/lib/transaction-service"
+import { resolveFoodItemImage } from "@/lib/image-service"
 
 interface FoodItem {
   id: string
@@ -68,6 +69,7 @@ interface FoodItem {
   pickup_contact: string
   pickup_latitude?: number
   pickup_longitude?: number
+  image_url?: string | null
   is_manual_override?: boolean
   override_reason?: string
   created_at: string
@@ -393,6 +395,7 @@ export default function MunicipalDashboard() {
         const profile = profilesData?.find((p) => p.id === item.donor_id)
         return {
           ...item,
+          image_url: resolveFoodItemImage(item) || null,
           profiles: profile || {
             first_name: "Unknown",
             last_name: "Donor",
@@ -1277,7 +1280,15 @@ export default function MunicipalDashboard() {
                         {foodItems.map((item) => (
                           <div key={item.id} className="border rounded-lg p-6">
                             <div className="flex justify-between items-start mb-4">
-                              <div className="flex-1">
+                              <div className="flex items-start gap-4 flex-1">
+                                {item.image_url && (
+                                  <img
+                                    src={item.image_url}
+                                    alt={item.title}
+                                    className="w-24 h-24 rounded-lg object-cover border border-gray-200 shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <h3 className="text-lg font-semibold">{item.title}</h3>
                                   <Badge className={getStatusColor(item.status)}>{item.status.replace("_", " ")}</Badge>
@@ -1365,6 +1376,7 @@ export default function MunicipalDashboard() {
                                     </div>
                                   </div>
                                 )}
+                                </div>
                               </div>
 
                               {/* Action Buttons */}

@@ -24,6 +24,8 @@ import {
   Trash2,
   History,
   X as XIcon,
+  Image as ImageIcon,
+  Maximize2,
 } from "lucide-react"
 import { getFoodItemUrgency, formatExpiryDisplay } from "@/lib/distribution-service"
 import { LocationViewerMap } from "@/components/maps/location-picker-map"
@@ -36,6 +38,7 @@ export default function DonorDonationsPage() {
   const { foodItems, transactionLogs, handleDeleteFoodItem } = useDonor()
 
   const [viewingMapItem, setViewingMapItem] = useState<FoodItem | null>(null)
+  const [viewingImageItem, setViewingImageItem] = useState<FoodItem | null>(null)
   const [selectedItemForLogs, setSelectedItemForLogs] = useState<FoodItem | null>(null)
   const [showItemLogsDialog, setShowItemLogsDialog] = useState(false)
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<string | null>(null)
@@ -238,28 +241,50 @@ export default function DonorDonationsPage() {
               {foodItems.map((item) => (
                 <div key={item.id} className="border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors bg-white">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900 text-base">{item.title}</h3>
-                        <Badge className={`${getStatusColor(item.status)} font-medium text-xs px-2.5 py-0.5`}>
-                          <div className="flex items-center gap-1.5">
-                            {getStatusIcon(item.status)}
-                            <span className="capitalize">{item.status.replace("_", " ")}</span>
+                    <div className="flex flex-col sm:flex-row items-start gap-4 flex-1 w-full">
+                      {item.image_url && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingImageItem(item)}
+                          className="w-full sm:w-28 h-44 sm:h-28 rounded-xl overflow-hidden border border-gray-200 shrink-0 relative group cursor-pointer bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          title="View full photo"
+                        >
+                          <img
+                            src={item.image_url}
+                            alt={item.title}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-gray-900 rounded-full p-1.5 shadow-sm">
+                              <Maximize2 className="h-4 w-4" />
+                            </span>
                           </div>
-                        </Badge>
-                        {item.delivery_method && (
-                          <Badge variant="outline" className="flex items-center gap-1 text-xs text-gray-600">
-                            {item.delivery_method === "pickup" ? (
-                              <Truck className="h-3 w-3 text-blue-500" />
-                            ) : (
-                              <MapPin className="h-3 w-3 text-emerald-500" />
-                            )}
-                            <span className="capitalize">{item.delivery_method}</span>
+                        </button>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 text-base">{item.title}</h3>
+                          <Badge className={`${getStatusColor(item.status)} font-medium text-xs px-2.5 py-0.5`}>
+                            <div className="flex items-center gap-1.5">
+                              {getStatusIcon(item.status)}
+                              <span className="capitalize">{item.status.replace("_", " ")}</span>
+                            </div>
                           </Badge>
-                        )}
+                          {item.delivery_method && (
+                            <Badge variant="outline" className="flex items-center gap-1 text-xs text-gray-600">
+                              {item.delivery_method === "pickup" ? (
+                                <Truck className="h-3 w-3 text-blue-500" />
+                              ) : (
+                                <MapPin className="h-3 w-3 text-emerald-500" />
+                              )}
+                              <span className="capitalize">{item.delivery_method}</span>
+                            </Badge>
+                          )}
+                        </div>
+                        {item.description && <p className="text-sm text-gray-600 mb-2 leading-relaxed">{item.description}</p>}
+                        <p className="text-xs text-gray-500">{getStatusDescription(item.status)}</p>
                       </div>
-                      {item.description && <p className="text-sm text-gray-600 mb-2 leading-relaxed">{item.description}</p>}
-                      <p className="text-xs text-gray-500">{getStatusDescription(item.status)}</p>
                     </div>
 
                     {/* Action Buttons */}
@@ -513,6 +538,41 @@ export default function DonorDonationsPage() {
               logs={transactionLogs.filter((l) => l.food_item_id === selectedItemForLogs?.id)}
             />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Food Photo Lightbox Dialog */}
+      <Dialog open={!!viewingImageItem} onOpenChange={() => setViewingImageItem(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-green-600" />
+              {viewingImageItem?.title}
+            </DialogTitle>
+            <DialogDescription>
+              {viewingImageItem && (
+                <span>
+                  <span className="capitalize">{viewingImageItem.category}</span> • {viewingImageItem.quantity}{" "}
+                  {viewingImageItem.unit} •{" "}
+                  {formatExpiryDisplay({
+                    expiry_type: viewingImageItem.expiry_type || "exact",
+                    expiry_date: viewingImageItem.expiry_date,
+                    expiry_date_from: viewingImageItem.expiry_date_from,
+                    expiry_date_to: viewingImageItem.expiry_date_to,
+                  })}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {viewingImageItem?.image_url && (
+            <div className="w-full max-h-[65vh] rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+              <img
+                src={viewingImageItem.image_url}
+                alt={viewingImageItem.title}
+                className="max-w-full max-h-[65vh] object-contain"
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

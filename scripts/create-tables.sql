@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS food_items (
   delivery_method TEXT DEFAULT 'pickup' CHECK (delivery_method IN ('pickup', 'dropoff')),
   pickup_address TEXT,
   pickup_contact TEXT,
+  image_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

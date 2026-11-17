@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client"
 import { getTransactionLogs, TransactionLogEntry } from "@/lib/transaction-service"
+import { resolveFoodItemImage } from "@/lib/image-service"
 
 export type JourneyStepStatus = "donated" | "collected" | "allocated" | "distributed"
 
@@ -31,6 +32,7 @@ export interface DonationJourney {
   estimatedMeals: number
   beneficiariesSummary?: string
   impactStoryId?: string
+  imageUrl?: string
 }
 
 export interface CommunityImpactStory {
@@ -413,6 +415,7 @@ export async function getDonorJourneys(donorId: string): Promise<DonationJourney
         steps: [step1, step2, step3, step4],
         currentStepIndex,
         estimatedMeals,
+        imageUrl: resolveFoodItemImage(item),
         beneficiariesSummary: isDistributed
           ? `Fed approx. ${Math.round(qtyNum * 1.8)} individuals in Brgy. ${targetBarangay || "Damires"}`
           : undefined,
