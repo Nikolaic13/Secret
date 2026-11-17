@@ -221,7 +221,7 @@ export function CommunityStoryCard({ story, onCheerChange }: CommunityStoryCardP
 
       {/* Lightbox Modal for Photo */}
       <Dialog open={!!previewPhoto} onOpenChange={() => setPreviewPhoto(null)}>
-        <DialogContent className="max-w-3xl p-2 bg-zinc-950 border-zinc-800 text-white overflow-hidden rounded-2xl">
+        <DialogContent className="max-w-3xl p-2 bg-zinc-950 border-zinc-800 text-white overflow-hidden rounded-2xl [&>button]:text-zinc-200 [&>button]:bg-zinc-800/80 [&>button]:hover:bg-zinc-700 [&>button]:hover:text-white [&>button]:opacity-100 [&>button]:p-1.5 [&>button]:rounded-full [&>button]:top-3 [&>button]:right-3">
           <DialogHeader className="p-2 pb-0">
             <DialogTitle className="text-sm font-semibold text-zinc-300">
               Distribution Proof • Brgy. {story.barangayName}
