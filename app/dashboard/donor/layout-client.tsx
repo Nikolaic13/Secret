@@ -76,9 +76,14 @@ export function DonorLayoutClient({ children }: { children: React.ReactNode }) {
 
   return (
     <MobileNavProvider>
-      <div className="h-screen bg-muted/20 flex overflow-hidden">
+      <div className="min-h-screen bg-muted/20 flex">
         {/* Collapsible Sidebar */}
-        <Sidebar items={donorSidebarItems} title="Donor Portal" collapsible={true} />
+        <Sidebar
+          items={donorSidebarItems}
+          title="Donor Portal"
+          collapsible={true}
+          className="md:sticky md:top-0 md:h-screen"
+        />
 
         <div className="flex-1 flex flex-col min-w-0">
           <Header
@@ -90,7 +95,7 @@ export function DonorLayoutClient({ children }: { children: React.ReactNode }) {
             onLogout={handleLogout}
           />
 
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+          <main className="flex-1 p-4 sm:p-6 md:p-8">
           <div className="container mx-auto max-w-6xl">
             {/* Notifications Dropdown / Card */}
             {showNotifications && (
