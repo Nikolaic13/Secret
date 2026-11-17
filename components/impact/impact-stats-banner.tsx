@@ -211,7 +211,7 @@ export function ImpactStatsBanner({ metrics, donorName = "Generous Donor" }: Imp
               variant="outline"
               size="sm"
               onClick={() => setShowShareModal(false)}
-              className="text-xs border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+              className="text-xs border-zinc-300 bg-white text-black hover:bg-gray-200 hover:text-black"
             >
               Close
             </Button>
